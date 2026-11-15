@@ -1,6 +1,7 @@
 import type { Customer, Order, Product, Store, User } from '../../domain/types';
 import type { AuthRepository, CustomerRepository, OrderRepository, ProductRepository, StoreRepository } from './contracts';
 import { getSupabase } from '../supabase/client';
+import { createProductSlug } from '../../features/products/productSlug';
 
 function fail(error: { message: string } | null): void {
   if (error) throw new Error(error.message);
@@ -191,6 +192,40 @@ export const productRepository: ProductRepository = {
       .single();
     fail(error);
     return toProduct(data);
+  },
+  async update(storeId, productId, input) {
+    const variant = input.variants[0];
+    if (!variant?.id) {
+      throw new Error('لا يمكن تعديل هذا المنتج لأنه لا يحتوي على متغير أساسي صالح.');
+    }
+    const { error } = await getSupabase().rpc('update_product', {
+      p_store_id: storeId,
+      p_product_id: productId,
+      p_variant_id: variant.id,
+      p_name: input.name.trim(),
+      p_slug: createProductSlug(input.name, `product-${productId.slice(0, 8)}`),
+      p_description: input.description,
+      p_status: input.status,
+      p_price: variant.priceMinor / 100,
+      p_stock_quantity: variant.inventoryQuantity,
+      p_sku: variant.sku || null,
+      p_images: input.images,
+    });
+    fail(error);
+    const updated = await this.get(storeId, productId);
+    if (!updated) throw new Error('تم تحديث المنتج لكن تعذر إعادة تحميله.');
+    return updated;
+  },
+  async updateStatus(storeId, productId, status) {
+    const { data, error } = await getSupabase()
+      .from('products')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('store_id', storeId)
+      .eq('id', productId)
+      .select('id')
+      .maybeSingle();
+    fail(error);
+    if (!data) throw new Error('لم يتم العثور على المنتج أو لا تملك صلاحية تعديله.');
   },
 };
 
