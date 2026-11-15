@@ -29,7 +29,10 @@ jobs:
           node-version: 22.12.0
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Fail on high or critical dependency vulnerabilities
+        run: npm audit --audit-level=high
 
       - name: Report dependency security advisories
         run: |
