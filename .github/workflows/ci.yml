@@ -31,6 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Report dependency security advisories
+        run: |
+          npm audit --json > npm-audit.json || true
+          node -e "const a=require('./npm-audit.json'); console.log(JSON.stringify(Object.values(a.vulnerabilities || {}).map(v => ({name:v.name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable})), null, 2));"
+
       - name: TypeScript typecheck
         run: npm run typecheck
 
