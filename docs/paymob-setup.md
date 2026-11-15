@@ -18,11 +18,11 @@
 | `PAYMOB_PUBLIC_KEY` | Public Key الخاص بالمتجر/حساب التاجر |
 | `PAYMOB_INTEGRATION_ID` | رقم Payment Integration في حساب Paymob |
 | `PAYMOB_HMAC_SECRET` | قيمة HMAC Secret من إعدادات Paymob |
-| `SULY_PUBLIC_URL` | عنوان HTTPS العام للواجهة الأمامية، دون / في النهاية |
+| `SULY_PUBLIC_URL` | عنوان HTTPS العام للواجهة الأمامية، دون / في النهاية |\n| `PAYMOB_ENABLED_STORE_SLUG` | رابط متجر الاختبار الوحيد المسموح له باستخدام حساب Paymob هذا |
 
 لا ترسل المفاتيح في المحادثة ولا تضفها إلى `.env.local` أو GitHub أو أي متغير يبدأ بـ `VITE_`.
 
-بعد إضافة القيم، يقرأ `get-checkout-methods` حالة الإعداد تلقائيًا، ويظهر خيار Paymob في Checkout. لا تحتاج إلى إعادة نشر الدوال بعد ضبط Secrets.
+بعد إضافة القيم، يقرأ `get-checkout-methods` حالة الإعداد تلقائيًا. لا يظهر Paymob إلا داخل المتجر الذي يطابق `PAYMOB_ENABLED_STORE_SLUG` حرفيًا. جميع المتاجر الأخرى تبقى على الدفع عند الاستلام. لا تحتاج إلى إعادة نشر الدوال بعد ضبط Secrets.
 
 ## روابط Callback وRedirect
 - Callback: `https://tihbrxbymkljhuyfoaio.supabase.co/functions/v1/paymob-webhook`
