@@ -273,7 +273,15 @@ export const productRepository: ProductRepository = {
         p_sku: firstVariant?.sku || null,
         p_images: input.images,
       });
-    fail(createError);
+    if (createError) {
+      if (createError.message.includes('PLAN_LIMIT_PRODUCTS_REACHED')) {
+        throw new Error('وصل متجرك إلى الحد الأقصى لعدد المنتجات في خطتك الحالية. راجع الاشتراك أو تواصل مع الدعم.');
+      }
+      if (createError.message.includes('SUBSCRIPTION_NOT_ACTIVE')) {
+        throw new Error('اشتراك المتجر غير نشط، لذلك لا يمكن إضافة منتجات جديدة. راجع الاشتراك أو تواصل مع الدعم.');
+      }
+      throw new Error(createError.message);
+    }
     if (!created?.id) throw new Error('لم يتم إرجاع المنتج الذي تم إنشاؤه.');
     const { data: categorized, error: categoryError } = await getSupabase()
       .from('products')
