@@ -36,7 +36,7 @@ export function CheckoutPage() {
       try {
         const [found, methods] = await Promise.all([
           storeRepository.getBySlug(storeSlug),
-          checkoutRepository.getPaymentMethods(),
+          checkoutRepository.getPaymentMethods(storeSlug),
         ]);
         if (!active) return;
         setStore(found);
