@@ -33,7 +33,7 @@ function toCategory(row: any): Category {
 
 function categorySlug(name: string): string {
   const slug = name.normalize('NFKC').trim().toLocaleLowerCase()
-    .replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+    .replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
   return slug || `category-${crypto.randomUUID().slice(0, 8)}`;
 }
 
