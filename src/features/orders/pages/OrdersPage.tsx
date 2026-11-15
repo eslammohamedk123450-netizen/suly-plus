@@ -1,0 +1,1 @@
+import {PageHeader} from '../../../shared/components/PageHeader'; export function OrdersPage(){return <><PageHeader title="الطلبات" description="متابعة الطلبات وحالات تنفيذها."/><div className="rounded-2xl border bg-white p-8 text-center text-slate-500">ستظهر الطلبات بعد ربط خدمة الطلبات.</div></>}
