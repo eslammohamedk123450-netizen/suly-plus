@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Save, Plus, RefreshCw, Receipt } from 'lucide-react';
+import { ArrowRight, Save, RefreshCw, Receipt } from 'lucide-react';
 import { getSupabase } from '../../../services/supabase/client';
 
 type SubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'suspended';
