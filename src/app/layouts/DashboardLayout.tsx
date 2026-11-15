@@ -14,6 +14,7 @@ const links = [
   ['/dashboard/design', 'تصميم المتجر', Palette],
   ['/dashboard/settings', 'الإعدادات', Settings],
   ['/dashboard/reports', 'التقارير المالية', ChartNoAxesCombined],
+  ['/dashboard/team', 'فريق المتجر', Users],
 ] as const;
 
 export function DashboardLayout() {
