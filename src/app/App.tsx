@@ -23,6 +23,7 @@ import { OrderTrackingPage } from '../features/storefront/pages/OrderTrackingPag
 import { NotFoundPage } from '../shared/pages/NotFoundPage';
 import { AdminPage } from '../features/admin/pages/AdminPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
+import { TeamPage } from '../features/team/pages/TeamPage';
 
 export default function App() {
   return <Routes>
@@ -45,6 +46,7 @@ export default function App() {
       <Route path="design" element={<StoreDesignPage />} />
       <Route path="settings" element={<SettingsPage />} />
       <Route path="reports" element={<ReportsPage />} />
+      <Route path="team" element={<TeamPage />} />
     </Route>
     <Route path="/store/:storeSlug" element={<StorefrontPage />} />
     <Route path="/store/:storeSlug/product/:productId" element={<ProductDetailsPage />} />
