@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import type { Order, Store } from '../../../domain/types';
-import { orderRepository, storeRepository } from '../../../services/repositories/httpRepositories';
+import { orderRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
 
 const labels: Record<Order['status'], string> = { pending: 'قيد الانتظار', paid: 'مدفوع', fulfilled: 'مكتمل', cancelled: 'ملغي' };
 const money = (minor: number, currency: string) => new Intl.NumberFormat('ar-EG', { style: 'currency', currency }).format(minor / 100);
