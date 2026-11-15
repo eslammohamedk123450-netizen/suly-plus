@@ -147,6 +147,13 @@ export function OrdersPage() {
                   <span>{line.name} × {line.quantity}</span><span>{money(line.unitPriceMinor * line.quantity, order.currency)}</span>
                 </div>)}
               </div>
+              <div className="mt-4 ml-auto max-w-xs space-y-2 border-t pt-3 text-sm">
+                <div className="flex justify-between"><span className="text-slate-500">قيمة المنتجات</span><span>{money(order.subtotalMinor ?? order.totalMinor, order.currency)}</span></div>
+                {(order.discountMinor ?? 0) > 0 && <div className="flex justify-between text-emerald-700"><span>الخصم{order.couponCode ? ` (${order.couponCode})` : ''}</span><span>−{money(order.discountMinor ?? 0, order.currency)}</span></div>}
+                <div className="flex justify-between"><span className="text-slate-500">الشحن</span><span>{(order.shippingMinor ?? 0) === 0 ? 'مجاني' : money(order.shippingMinor ?? 0, order.currency)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">الضريبة</span><span>{money(order.taxMinor ?? 0, order.currency)}</span></div>
+                <div className="flex justify-between border-t pt-3 font-bold"><span>الإجمالي النهائي</span><span>{money(order.totalMinor, order.currency)}</span></div>
+              </div>
               {next.length > 0 && <div className="mt-4 rounded-xl bg-slate-50 p-3">
                 <label className="mb-2 block text-xs font-semibold text-slate-600" htmlFor={`note-${order.id}`}>ملاحظة داخلية (اختيارية)</label>
                 <input id={`note-${order.id}`} value={notes[order.id] ?? ''} onChange={e => setNotes(current => ({ ...current, [order.id]: e.target.value }))}
