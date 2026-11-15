@@ -21,9 +21,11 @@ import { CartPage } from '../features/storefront/pages/CartPage';
 import { CheckoutPage } from '../features/storefront/pages/CheckoutPage';
 import { OrderTrackingPage } from '../features/storefront/pages/OrderTrackingPage';
 import { NotFoundPage } from '../shared/pages/NotFoundPage';
+import { AdminPage } from '../features/admin/pages/AdminPage';
 
 export default function App() {
   return <Routes>
+    <Route path="/admin" element={<AdminPage />} />
     <Route element={<PublicLayout />}>
       <Route path="/" element={<HomePage />} />
       <Route path="/features" element={<FeaturesPage />} />
