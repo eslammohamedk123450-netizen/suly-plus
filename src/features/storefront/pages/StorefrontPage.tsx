@@ -53,9 +53,32 @@ export function StorefrontPage() {
     return () => { active = false; };
   }, [storeSlug]);
 
-  const visibleProducts = activeCategoryId
-    ? products.filter(product => product.categoryId === activeCategoryId)
-    : products;
+  const visibleProducts = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase('ar');
+    const filtered = products.filter(product =>
+      (!activeCategoryId || product.categoryId === activeCategoryId)
+      && (!normalized || [product.name, product.description].some(value => value.toLocaleLowerCase('ar').includes(normalized))),
+    );
+    return [...filtered].sort((a, b) => {
+      if (sort === 'price_asc') return (a.variants[0]?.priceMinor ?? 0) - (b.variants[0]?.priceMinor ?? 0);
+      if (sort === 'price_desc') return (b.variants[0]?.priceMinor ?? 0) - (a.variants[0]?.priceMinor ?? 0);
+      if (sort === 'name') return a.name.localeCompare(b.name, 'ar');
+      return 0;
+    });
+  }, [products, activeCategoryId, query, sort]);
+
+  async function changePage(nextPage: number) {
+    if (!store || nextPage < 1 || nextPage > Math.ceil(totalProducts / 20)) return;
+    setLoading(true);
+    setError('');
+    try {
+      const result = await listPublicProducts(store.id, nextPage);
+      setProducts(result.items);
+      setPage(result.page);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'تعذر تحميل المنتجات.');
+    } finally { setLoading(false); }
+  }
 
   function add(productId: string) {
     const cart = addCartItem(storeSlug, productId);
@@ -77,6 +100,7 @@ export function StorefrontPage() {
       </div>
       <button onClick={() => navigate(`/store/${storeSlug}/cart`)} className="btn-primary">السلة ({cartCount})</button>
     </header>
+    {store.announcement && <div role="status" className="mb-8 rounded-xl bg-brand-50 px-5 py-3 text-center text-sm font-medium text-brand-800">{store.announcement}</div>}
     <section className="mb-5 grid gap-3 sm:grid-cols-[1fr_220px]">
       <input aria-label="البحث عن منتج" value={query} onChange={event => setQuery(event.target.value)} placeholder="ابحث عن منتج بالاسم أو الوصف..." className="w-full rounded-xl border bg-white p-3 text-sm" />
       <select aria-label="ترتيب المنتجات" value={sort} onChange={event => setSort(event.target.value as typeof sort)} className="rounded-xl border bg-white p-3 text-sm">
@@ -92,7 +116,14 @@ export function StorefrontPage() {
     {visibleProducts.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleProducts.map(product => <article key={product.id} className="overflow-hidden rounded-2xl border bg-white">
       {product.images[0] ? <img src={product.images[0]} alt={product.name} className="aspect-square w-full object-cover" /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400">لا توجد صورة</div>}
       <div className="p-5"><Link to={`/store/${storeSlug}/product/${product.id}`} className="font-bold hover:text-brand-600">{product.name}</Link><p className="mt-2 line-clamp-2 text-sm text-slate-500">{product.description}</p><p className="mt-4 font-bold">{new Intl.NumberFormat('ar-EG', { style: 'currency', currency: product.currency }).format((product.variants[0]?.priceMinor ?? 0) / 100)}</p><div className="mt-4 grid grid-cols-2 gap-2"><Link to={`/store/${storeSlug}/product/${product.id}`} className="rounded-xl border px-3 py-2 text-center text-sm font-semibold">التفاصيل</Link><button onClick={() => add(product.id)} className="btn-primary">أضف للسلة</button></div></div>
-    </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">{activeCategoryId ? 'لا توجد منتجات منشورة في هذا التصنيف.' : 'لا توجد منتجات منشورة في هذا المتجر حاليًا.'}</div>}
+    </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">{query ? 'لا توجد منتجات تطابق بحثك في هذه الصفحة.' : activeCategoryId ? 'لا توجد منتجات منشورة في هذا التصنيف.' : 'لا توجد منتجات منشورة في هذا المتجر حاليًا.'}</div>}
+    {totalProducts > 20 && <footer className="mt-8 flex items-center justify-between gap-3 rounded-xl border bg-white p-4">
+      <span className="text-sm text-slate-500">الصفحة {page} من {Math.ceil(totalProducts / 20)} · {totalProducts} منتج</span>
+      <div className="flex gap-2">
+        <button type="button" disabled={loading || page <= 1} onClick={() => void changePage(page - 1)} className="rounded-xl border px-4 py-2 text-sm disabled:opacity-40">السابق</button>
+        <button type="button" disabled={loading || page >= Math.ceil(totalProducts / 20)} onClick={() => void changePage(page + 1)} className="rounded-xl border px-4 py-2 text-sm disabled:opacity-40">التالي</button>
+      </div>
+    </footer>}
     {(store.supportEmail || store.supportPhone) && <footer className="mt-12 border-t pt-6 text-center text-sm text-slate-500">
       <p className="font-semibold text-slate-700">تواصل مع المتجر</p>
       <div className="mt-2 flex flex-wrap justify-center gap-4">
