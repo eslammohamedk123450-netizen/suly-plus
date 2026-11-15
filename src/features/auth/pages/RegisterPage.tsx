@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { authRepository } from '../../../services/repositories/supabaseRepositories';
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = searchParams.get('next') === '/account/orders' ? '/account/orders' : '/create-store';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +19,7 @@ export function RegisterPage() {
     setLoading(true); setError(''); setNotice('');
     try {
       await authRepository.signUp({ displayName: name.trim(), email: email.trim(), password });
-      navigate('/create-store', { replace: true });
+      navigate(nextPath, { replace: true });
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : 'تعذر إنشاء الحساب.';
       if (message.includes('راجع بريدك الإلكتروني')) setNotice(message);
@@ -38,7 +40,7 @@ export function RegisterPage() {
       <label className="mt-4 block text-sm font-medium" htmlFor="register-password">كلمة المرور</label>
       <input id="register-password" type="password" required minLength={8} value={password} onChange={e => setPassword(e.target.value)} className="mt-2 w-full rounded-xl border p-3" autoComplete="new-password" />
       <button disabled={loading} className="btn-primary mt-6 w-full disabled:opacity-60">{loading ? 'جارٍ إنشاء الحساب...' : 'إنشاء حساب'}</button>
-      <p className="mt-6 text-center text-sm text-slate-500">لديك حساب؟ <Link to="/login" className="font-semibold text-brand-600">تسجيل الدخول</Link></p>
+      <p className="mt-6 text-center text-sm text-slate-500">لديك حساب؟ <Link to={nextPath === '/account/orders' ? '/login?next=%2Faccount%2Forders' : '/login'} className="font-semibold text-brand-600">تسجيل الدخول</Link></p>
     </form>
   </div>;
 }
