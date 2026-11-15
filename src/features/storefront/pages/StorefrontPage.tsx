@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Category, Product } from '../../../domain/types';
 import { categoryRepository, productRepository } from '../../../services/repositories/supabaseRepositories';
-import { storeAppearanceRepository, type StoreAppearance } from '../../store-design/storeAppearanceRepository';
+import { storeAppearanceRepository, type PublicStoreAppearance } from '../../store-design/storeAppearanceRepository';
 import { addCartItem, readCart } from '../cart';
 
-type PublicStore = Pick<StoreAppearance, 'id'|'name'|'slug'|'currency'|'description'|'logoUrl'>;
+type PublicStore = PublicStoreAppearance;
 
 export function StorefrontPage() {
   const { storeSlug = '' } = useParams();
@@ -92,5 +92,12 @@ export function StorefrontPage() {
       {product.images[0] ? <img src={product.images[0]} alt={product.name} className="aspect-square w-full object-cover" /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400">لا توجد صورة</div>}
       <div className="p-5"><Link to={`/store/${storeSlug}/product/${product.id}`} className="font-bold hover:text-brand-600">{product.name}</Link><p className="mt-2 line-clamp-2 text-sm text-slate-500">{product.description}</p><p className="mt-4 font-bold">{new Intl.NumberFormat('ar-EG', { style: 'currency', currency: product.currency }).format((product.variants[0]?.priceMinor ?? 0) / 100)}</p><div className="mt-4 grid grid-cols-2 gap-2"><Link to={`/store/${storeSlug}/product/${product.id}`} className="rounded-xl border px-3 py-2 text-center text-sm font-semibold">التفاصيل</Link><button onClick={() => add(product.id)} className="btn-primary">أضف للسلة</button></div></div>
     </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">{activeCategoryId ? 'لا توجد منتجات منشورة في هذا التصنيف.' : 'لا توجد منتجات منشورة في هذا المتجر حاليًا.'}</div>}
+    {(store.supportEmail || store.supportPhone) && <footer className="mt-12 border-t pt-6 text-center text-sm text-slate-500">
+      <p className="font-semibold text-slate-700">تواصل مع المتجر</p>
+      <div className="mt-2 flex flex-wrap justify-center gap-4">
+        {store.supportEmail && <a href={`mailto:${store.supportEmail}`} className="hover:text-brand-600">{store.supportEmail}</a>}
+        {store.supportPhone && <a href={`tel:${store.supportPhone.replace(/[^+0-9]/g, '')}`} className="hover:text-brand-600">{store.supportPhone}</a>}
+      </div>
+    </footer>}
   </main>;
 }
