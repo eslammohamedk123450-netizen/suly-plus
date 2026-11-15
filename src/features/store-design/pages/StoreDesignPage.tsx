@@ -1,0 +1,1 @@
+import {PageHeader} from '../../../shared/components/PageHeader'; export function StoreDesignPage(){return <><PageHeader title="تصميم المتجر" description="تخصيص واجهة متجرك."/><div className="rounded-2xl border bg-white p-8 text-center text-slate-500">أدوات التصميم قيد التجهيز.</div></>}
