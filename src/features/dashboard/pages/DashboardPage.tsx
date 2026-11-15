@@ -7,7 +7,7 @@ import type { Store } from '../../../domain/types';
 import { subscriptionRepository, type StorePlanOverview } from '../../subscriptions/subscriptionRepository';
 import { getEffectiveSubscriptionStatus } from '../../subscriptions/subscriptionStatus';
 
-const subscriptionStatusLabels: Record<string, string> = { trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد', cancelled: 'ملغي', suspended: 'موقوف', expired: 'منتهي', upcoming: 'لم يبدأ بعد' };
+const subscriptionStatusLabels: Record<string, string> = { trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد', cancelled: 'ملغي', suspended: 'موقوف', expired: 'منتهي', upcoming: 'لم يبدأ بعد', plan_inactive: 'الخطة غير مفعّلة' };
 
 function PlanUsageCard({ storeId }: { storeId: string }) {
   const [overview, setOverview] = useState<StorePlanOverview | null>(null);
@@ -31,6 +31,7 @@ function PlanUsageCard({ storeId }: { storeId: string }) {
       currentPeriodStart: overview.currentPeriodStart,
       currentPeriodEnd: overview.currentPeriodEnd,
       trialEnd: overview.trialEnd,
+      planActive: overview.planActive,
     })] ?? overview.status : ''} · {overview.billingInterval === 'monthly' ? 'شهري' : overview.billingInterval === 'yearly' ? 'سنوي' : 'يدوي'}</p></div>{overview.currentPeriodEnd && <span className="text-xs text-slate-400">تنتهي {new Date(overview.currentPeriodEnd).toLocaleDateString('ar-EG')}</span>}</div>
     <div className="mt-5 grid gap-4 md:grid-cols-3">
       <div><div className="flex justify-between gap-2 text-sm"><span className="text-slate-500">المنتجات</span><b>{overview.productCount.toLocaleString('ar-EG')} / {limitText(overview.maxProducts)}</b></div>{overview.maxProducts !== null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-600" style={{ width: `${productPercent}%` }}/></div>}</div>
