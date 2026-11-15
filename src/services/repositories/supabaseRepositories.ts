@@ -168,7 +168,7 @@ export const productRepository: ProductRepository = {
   async create(storeId, input) {
     const firstVariant = input.variants[0];
     const price = (firstVariant?.priceMinor ?? 0) / 100;
-    const slug = input.name.toLowerCase().trim().replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+    const slug = createProductSlug(input.name, `product-${crypto.randomUUID().slice(0, 8)}`);
     const { data: created, error: createError } = await getSupabase()
       .rpc('create_product', {
         p_store_id: storeId,
