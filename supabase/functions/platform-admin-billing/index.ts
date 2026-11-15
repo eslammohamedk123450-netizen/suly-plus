@@ -54,13 +54,14 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
     if (req.method === "GET") {
-      const [plans, subscriptions, invoices] = await Promise.all([
+      const [plans, subscriptions, invoices, stores] = await Promise.all([
         admin.from("subscription_plans").select("*").order("monthly_price", { ascending: true }).order("name", { ascending: true }),
         admin.from("store_subscriptions").select("id,store_id,plan_id,status,billing_interval,current_period_start,current_period_end,trial_end,cancel_at_period_end,created_at,stores(name,slug),subscription_plans(name,code)").order("updated_at", { ascending: false }).limit(100),
         admin.from("subscription_invoices").select("id,invoice_number,store_id,subscription_id,amount,currency,status,period_start,period_end,due_at,paid_at,payment_reference,memo,created_at,stores(name,slug)").order("created_at", { ascending: false }).limit(100),
+        admin.from("stores").select("id,name,slug,is_active").order("created_at", { ascending: false }).limit(200),
       ]);
-      if (plans.error || subscriptions.error || invoices.error) return reply(503, { error: "تعذر تحميل بيانات الاشتراكات والفوترة." });
-      return reply(200, { ok: true, plans: plans.data ?? [], subscriptions: subscriptions.data ?? [], invoices: invoices.data ?? [] });
+      if (plans.error || subscriptions.error || invoices.error || stores.error) return reply(503, { error: "تعذر تحميل بيانات الاشتراكات والفوترة." });
+      return reply(200, { ok: true, plans: plans.data ?? [], subscriptions: subscriptions.data ?? [], invoices: invoices.data ?? [], stores: stores.data ?? [] });
     }
 
     const action = typeof body.action === "string" ? body.action : "";
