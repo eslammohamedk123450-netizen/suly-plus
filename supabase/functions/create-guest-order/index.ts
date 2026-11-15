@@ -26,6 +26,121 @@ function clientIp(req: Request) {
     ?? "unknown";
 }
 
+function nameParts(fullName: string) {
+  const parts = fullName.trim().split(/\s+/);
+  return {
+    first_name: parts[0] || "Customer",
+    last_name: parts.slice(1).join(" ") || "Customer",
+  };
+}
+
+async function startPaymobCheckout(
+  order: Record<string, unknown>,
+  lineItems: Array<Record<string, unknown>>,
+  customer: { name: string; email: string; phone: string },
+  address: Record<string, unknown>,
+  storeSlug: string,
+): Promise<string> {
+  const secretKey = Deno.env.get("PAYMOB_SECRET_KEY");
+  const publicKey = Deno.env.get("PAYMOB_PUBLIC_KEY");
+  const integrationIdRaw = Deno.env.get("PAYMOB_INTEGRATION_ID") ?? "";
+  const publicOrigin = Deno.env.get("SULY_PUBLIC_URL");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+
+  if (!secretKey || !publicKey || !/^\d+$/.test(integrationIdRaw) || !publicOrigin || !supabaseUrl) {
+    throw new Error("Paymob is not configured.");
+  }
+
+  const origin = publicOrigin.replace(/\/$/, "");
+  if (!origin.startsWith("https://")) throw new Error("SULY_PUBLIC_URL must use HTTPS.");
+
+  const amountCents = Math.round(Number(order.total) * 100);
+  const itemsAmount = lineItems.reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || itemsAmount !== amountCents) {
+    throw new Error("The Paymob items total does not match the order total.");
+  }
+
+  const customerName = nameParts(customer.name);
+  const phone = customer.phone;
+  const street = String(address.address ?? "").slice(0, 250);
+  const city = String(address.city ?? "").slice(0, 100);
+  const state = String(address.governorate ?? city).slice(0, 100);
+  const postalCode = String(address.postal_code ?? "NA").slice(0, 20) || "NA";
+
+  const payload = {
+    amount: amountCents,
+    currency: String(order.currency),
+    payment_methods: [Number(integrationIdRaw)],
+    items: lineItems.map(item => ({
+      name: String(item.name).slice(0, 120),
+      amount: Number(item.amount),
+      quantity: Number(item.quantity),
+      description: String(item.description ?? item.name).slice(0, 250),
+    })),
+    billing_data: {
+      ...customerName,
+      email: customer.email,
+      phone_number: phone,
+      street,
+      building: "NA",
+      floor: "NA",
+      apartment: "NA",
+      city,
+      country: "EGY",
+      state,
+      postal_code: postalCode,
+      extra_description: "Suly Plus online order",
+    },
+    special_reference: String(order.order_id),
+    expiration: 3600,
+    notification_url: `${supabaseUrl.replace(/\/$/, "")}/functions/v1/paymob-webhook`,
+    redirection_url: `${origin}/store/${encodeURIComponent(storeSlug)}/order/${order.order_number}?token=${encodeURIComponent(String(order.public_token))}`,
+    extras: {
+      suly_order_id: String(order.order_id),
+      store_slug: storeSlug,
+    },
+  };
+
+  const apiResponse = await fetch("https://accept.paymob.com/v1/intention/", {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${secretKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const apiData = await apiResponse.json().catch(() => ({})) as Record<string, unknown>;
+  if (!apiResponse.ok) {
+    throw new Error(`Paymob intention request failed with HTTP ${apiResponse.status}.`);
+  }
+
+  const clientSecret = typeof apiData.client_secret === "string" ? apiData.client_secret : "";
+  const intentionId = typeof apiData.id === "string" || typeof apiData.id === "number" ? String(apiData.id) : "";
+  const intentionOrderId = typeof apiData.intention_order_id === "string" || typeof apiData.intention_order_id === "number"
+    ? String(apiData.intention_order_id) : "";
+  if (!clientSecret || !intentionId || !intentionOrderId) {
+    throw new Error("Paymob returned an incomplete intention response.");
+  }
+
+  const checkoutUrl = new URL("https://accept.paymob.com/unifiedcheckout/");
+  checkoutUrl.searchParams.set("publicKey", publicKey);
+  checkoutUrl.searchParams.set("clientSecret", clientSecret);
+
+  const admin = getAdminClient();
+  const { data: attached, error: attachError } = await admin.rpc("attach_paymob_intention_v2", {
+    p_order_id: String(order.order_id),
+    p_intention_id: intentionId,
+    p_intention_order_id: intentionOrderId,
+    p_checkout_url: checkoutUrl.toString(),
+  });
+  if (attachError || attached !== true) {
+    throw new Error("Could not attach the Paymob intention to the order.");
+  }
+
+  return checkoutUrl.toString();
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return response(405, { error: "Method not allowed." });
@@ -73,6 +188,18 @@ Deno.serve(async (req: Request) => {
   if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > 30) {
     return response(400, { error: "السلة فارغة أو تحتوي على عدد غير مسموح من المنتجات." });
   }
+  if (paymentMethod !== "cash_on_delivery" && paymentMethod !== "paymob") {
+    return response(400, { error: "طريقة الدفع غير مدعومة." });
+  }
+
+  if (paymentMethod === "paymob") {
+    const integration = Deno.env.get("PAYMOB_INTEGRATION_ID") ?? "";
+    if (!Deno.env.get("PAYMOB_SECRET_KEY") || !Deno.env.get("PAYMOB_PUBLIC_KEY")
+        || !Deno.env.get("PAYMOB_HMAC_SECRET") || !Deno.env.get("SULY_PUBLIC_URL")
+        || !/^\d+$/.test(integration)) {
+      return response(503, { error: "الدفع الإلكتروني غير مهيأ لهذا المتجر بعد. استخدم الدفع عند الاستلام أو تواصل مع المتجر." });
+    }
+  }
 
   const aggregated = new Map<string, number>();
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -90,23 +217,15 @@ Deno.serve(async (req: Request) => {
     return response(400, { error: "الكمية المطلوبة تتجاوز الحد المسموح." });
   }
 
-  if (paymentMethod !== "cash_on_delivery") {
-    return response(422, { error: "الدفع الإلكتروني غير مفعّل لهذا المتجر حتى يتم إعداد حساب بوابة الدفع." });
-  }
-
   try {
     const admin = getAdminClient();
     const { data: allowed, error: rateError } = await admin.rpc("consume_checkout_rate_limit", {
       p_ip_address: clientIp(req),
     });
-    if (rateError) {
-      return response(503, { error: "تعذر التحقق من حماية الطلبات. حاول مرة أخرى." });
-    }
-    if (allowed !== true) {
-      return response(429, { error: "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى." });
-    }
+    if (rateError) return response(503, { error: "تعذر التحقق من حماية الطلبات. حاول مرة أخرى." });
+    if (allowed !== true) return response(429, { error: "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى." });
 
-    const { data: order, error } = await admin.rpc("create_guest_order", {
+    const { data: order, error } = await admin.rpc("create_guest_order_for_payment", {
       p_store_slug: storeSlug,
       p_customer_name: customerName,
       p_customer_email: customerEmail,
@@ -120,6 +239,7 @@ Deno.serve(async (req: Request) => {
       },
       p_items: [...aggregated.entries()].map(([product_id, quantity]) => ({ product_id, quantity })),
       p_notes: notes,
+      p_payment_method: paymentMethod,
     });
 
     if (error) {
@@ -129,8 +249,36 @@ Deno.serve(async (req: Request) => {
       if (message.includes("Product unavailable")) return response(409, { error: "أحد المنتجات لم يعد متاحًا." });
       return response(400, { error: "تعذر إنشاء الطلب. راجع بيانات السلة والعنوان وحاول مجددًا." });
     }
+    if (!order || typeof order !== "object") return response(500, { error: "تعذر إنشاء الطلب." });
 
-    return response(201, { ok: true, order });
+    if (paymentMethod === "cash_on_delivery") {
+      const { line_items: _privateItems, ...safeOrder } = order as Record<string, unknown>;
+      return response(201, { ok: true, order: safeOrder });
+    }
+
+    try {
+      const checkoutUrl = await startPaymobCheckout(
+        order as Record<string, unknown>,
+        Array.isArray((order as Record<string, unknown>).line_items)
+          ? (order as Record<string, unknown>).line_items as Array<Record<string, unknown>> : [],
+        { name: customerName, email: customerEmail, phone: normalizedPhone },
+        {
+          address: shippingAddress.address,
+          city: shippingAddress.city,
+          governorate: shippingAddress.governorate,
+          postal_code: shippingAddress.postal_code,
+        },
+        storeSlug,
+      );
+      const { line_items: _privateItems, ...safeOrder } = order as Record<string, unknown>;
+      return response(201, { ok: true, order: safeOrder, checkout_url: checkoutUrl });
+    } catch {
+      await admin.rpc("fail_paymob_order", {
+        p_order_id: String((order as Record<string, unknown>).order_id),
+        p_error: "Paymob intention creation failed",
+      });
+      return response(502, { error: "تعذر بدء الدفع الإلكتروني. لم يتم تحصيل أي مبلغ، وتم إلغاء حجز الطلب. حاول مرة أخرى." });
+    }
   } catch {
     return response(500, { error: "حدث خطأ داخلي أثناء إنشاء الطلب." });
   }
