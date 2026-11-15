@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getSupabase } from '../../services/supabase/client';
+import { getSupabase } from '../../../services/supabase/client';
 
 interface Overview {
   metrics: { stores_count: number; users_count: number; orders_count: number };
