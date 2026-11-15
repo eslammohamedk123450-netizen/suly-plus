@@ -10,12 +10,18 @@ Deno.serve((req: Request) => {
   if (req.method !== "GET") return new Response(JSON.stringify({ error: "Method not allowed." }), { status: 405, headers: corsHeaders });
 
   const integrationId = Deno.env.get("PAYMOB_INTEGRATION_ID") ?? "";
+  const requestedStoreSlug = (req.headers.get("x-store-slug") ?? "").trim().toLowerCase();
+  const enabledStoreSlug = (Deno.env.get("PAYMOB_ENABLED_STORE_SLUG") ?? "").trim().toLowerCase();
+  const publicOrigin = Deno.env.get("SULY_PUBLIC_URL") ?? "";
   const paymobEnabled = Boolean(
-    Deno.env.get("PAYMOB_SECRET_KEY")
+    requestedStoreSlug
+    && enabledStoreSlug
+    && requestedStoreSlug === enabledStoreSlug
+    && Deno.env.get("PAYMOB_SECRET_KEY")
     && Deno.env.get("PAYMOB_PUBLIC_KEY")
     && Deno.env.get("PAYMOB_HMAC_SECRET")
-    && Deno.env.get("SULY_PUBLIC_URL")
-    && /^\d+$/.test(integrationId)
+    && publicOrigin.startsWith("https://")
+    && /^\\d+$/.test(integrationId)
   );
 
   return new Response(JSON.stringify({
