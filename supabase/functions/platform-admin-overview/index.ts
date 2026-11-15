@@ -26,7 +26,8 @@ Deno.serve(async (req: Request) => {
       global: { headers: { Authorization: authorization } },
       auth: { autoRefreshToken: false, persistSession: false },
     });
-    const { data: authData, error: authError } = await authClient.auth.getUser();
+    const token = authorization.replace(/^Bearer\\s+/i, '');
+    const { data: authData, error: authError } = await authClient.auth.getUser(token);
     if (authError || !authData.user) return reply(401, { error: "Invalid session." });
 
     // app_metadata is server-managed; user_metadata is user-editable and must never grant admin access.
