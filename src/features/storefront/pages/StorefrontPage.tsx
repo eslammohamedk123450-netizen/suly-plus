@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Category, Product } from '../../../domain/types';
-import { categoryRepository, productRepository } from '../../../services/repositories/supabaseRepositories';
+import { categoryRepository } from '../../../services/repositories/supabaseRepositories';
+import { listPublicProducts } from '../publicProducts';
 import { storeAppearanceRepository, type PublicStoreAppearance } from '../../store-design/storeAppearanceRepository';
 import { addCartItem, readCart } from '../cart';
 
@@ -33,7 +34,7 @@ export function StorefrontPage() {
         setStore(found);
         if (found) {
           const [productResult, categoryResult] = await Promise.all([
-            productRepository.list(found.id, 1),
+            listPublicProducts(found.id, 1),
             categoryRepository.list(found.id),
           ]);
           if (active) {
