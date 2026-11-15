@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { Category, Product, Store } from '../../../domain/types';
-import { categoryRepository, productRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
+import type { Category, Product } from '../../../domain/types';
+import { categoryRepository, productRepository } from '../../../services/repositories/supabaseRepositories';
+import { storeAppearanceRepository, type StoreAppearance } from '../../store-design/storeAppearanceRepository';
 import { addCartItem, readCart } from '../cart';
+
+type PublicStore = Pick<StoreAppearance, 'id'|'name'|'slug'|'currency'|'description'|'logoUrl'>;
 
 export function StorefrontPage() {
   const { storeSlug = '' } = useParams();
   const navigate = useNavigate();
-  const [store, setStore] = useState<Store | null>(null);
+  const [store, setStore] = useState<PublicStore | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState('');
@@ -21,7 +24,7 @@ export function StorefrontPage() {
     async function load() {
       setLoading(true); setError('');
       try {
-        const found = await storeRepository.getBySlug(storeSlug);
+        const found = await storeAppearanceRepository.getPublicBySlug(storeSlug);
         if (!active) return;
         setStore(found);
         if (found) {
@@ -44,7 +47,7 @@ export function StorefrontPage() {
   }, [storeSlug]);
 
   const visibleProducts = activeCategoryId
-    ? products.filter((product) => product.categoryId === activeCategoryId)
+    ? products.filter(product => product.categoryId === activeCategoryId)
     : products;
 
   function add(productId: string) {
@@ -58,27 +61,24 @@ export function StorefrontPage() {
 
   return <main className="container-shell py-12">
     <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
-      <div className="text-center sm:text-right"><h1 className="text-3xl font-bold">{store.name}</h1><p className="mt-2 text-sm text-slate-500">تسوّق منتجاتنا</p></div>
+      <div className="flex min-w-0 items-center gap-4">
+        {store.logoUrl && <img src={store.logoUrl} alt={`شعار ${store.name}`} className="h-16 w-16 rounded-xl border bg-white object-contain p-1" />}
+        <div className="text-center sm:text-right">
+          <h1 className="text-3xl font-bold">{store.name}</h1>
+          <p className="mt-2 text-sm text-slate-500">{store.description || 'تسوّق منتجاتنا'}</p>
+        </div>
+      </div>
       <button onClick={() => navigate(`/store/${storeSlug}/cart`)} className="btn-primary">السلة ({cartCount})</button>
     </header>
     {categories.length > 0 && <nav aria-label="تصنيفات المنتجات" className="mb-8 flex flex-wrap gap-2">
-      <button type="button" onClick={() => setActiveCategoryId('')}
-        aria-pressed={!activeCategoryId}
-        className={`rounded-full border px-4 py-2 text-sm font-medium ${!activeCategoryId ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
-        كل المنتجات
-      </button>
-      {categories.map((category) => <button key={category.id} type="button"
-        onClick={() => setActiveCategoryId(category.id)}
-        aria-pressed={activeCategoryId === category.id}
-        className={`rounded-full border px-4 py-2 text-sm font-medium ${activeCategoryId === category.id ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
-        {category.name}
-      </button>)}
+      <button type="button" onClick={() => setActiveCategoryId('')} aria-pressed={!activeCategoryId}
+        className={`rounded-full border px-4 py-2 text-sm font-medium ${!activeCategoryId ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>كل المنتجات</button>
+      {categories.map(category => <button key={category.id} type="button" onClick={() => setActiveCategoryId(category.id)} aria-pressed={activeCategoryId === category.id}
+        className={`rounded-full border px-4 py-2 text-sm font-medium ${activeCategoryId === category.id ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>{category.name}</button>)}
     </nav>}
     {visibleProducts.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleProducts.map(product => <article key={product.id} className="overflow-hidden rounded-2xl border bg-white">
       {product.images[0] ? <img src={product.images[0]} alt={product.name} className="aspect-square w-full object-cover" /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400">لا توجد صورة</div>}
       <div className="p-5"><Link to={`/store/${storeSlug}/product/${product.id}`} className="font-bold hover:text-brand-600">{product.name}</Link><p className="mt-2 line-clamp-2 text-sm text-slate-500">{product.description}</p><p className="mt-4 font-bold">{new Intl.NumberFormat('ar-EG', { style: 'currency', currency: product.currency }).format((product.variants[0]?.priceMinor ?? 0) / 100)}</p><div className="mt-4 grid grid-cols-2 gap-2"><Link to={`/store/${storeSlug}/product/${product.id}`} className="rounded-xl border px-3 py-2 text-center text-sm font-semibold">التفاصيل</Link><button onClick={() => add(product.id)} className="btn-primary">أضف للسلة</button></div></div>
-    </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">
-      {activeCategoryId ? 'لا توجد منتجات منشورة في هذا التصنيف.' : 'لا توجد منتجات منشورة في هذا المتجر حاليًا.'}
-    </div>}
+    </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">{activeCategoryId ? 'لا توجد منتجات منشورة في هذا التصنيف.' : 'لا توجد منتجات منشورة في هذا المتجر حاليًا.'}</div>}
   </main>;
 }
