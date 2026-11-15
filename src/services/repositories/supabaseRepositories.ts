@@ -4,7 +4,21 @@ import { getSupabase } from '../supabase/client';
 import { createProductSlug } from '../../features/products/productSlug';
 
 function fail(error: { message: string } | null): void {
-  if (error) throw new Error(error.message);
+  if (!error) return;
+  const message = error.message ?? '';
+  if (message.includes('PLAN_LIMIT_PRODUCTS_REACHED')) {
+    throw new Error('وصل متجرك إلى الحد الأقصى لعدد المنتجات في خطتك الحالية. راجع الاشتراك أو تواصل مع الدعم.');
+  }
+  if (message.includes('PLAN_LIMIT_TEAM_MEMBERS_REACHED')) {
+    throw new Error('وصل المتجر إلى الحد الأقصى لأعضاء الفريق في خطته الحالية.');
+  }
+  if (message.includes('PLAN_LIMIT_MONTHLY_ORDERS_REACHED')) {
+    throw new Error('وصل المتجر إلى الحد الأقصى للطلبات خلال الشهر الحالي.');
+  }
+  if (message.includes('SUBSCRIPTION_NOT_ACTIVE')) {
+    throw new Error('اشتراك المتجر غير نشط، لذلك لا يمكن تنفيذ هذه العملية. راجع الاشتراك أو تواصل مع الدعم.');
+  }
+  throw new Error(message);
 }
 
 function toUser(user: { id: string; email?: string; user_metadata?: Record<string, unknown> }): User {
@@ -610,7 +624,12 @@ export const checkoutRepository = {
     coupon_code?: string | null;
   }): Promise<GuestOrderResult> {
     const { data, error } = await getSupabase().functions.invoke('create-guest-order', { body: input });
-    if (error) throw new Error('تعذر إرسال الطلب. تحقق من الاتصال وحاول مرة أخرى.');
+    if (error) {
+      const status = (error as { context?: { status?: number } }).context?.status;
+      if (status === 429) throw new Error('وصل المتجر إلى الحد الأقصى للطلبات خلال هذه الفترة. تواصل مع إدارة المتجر.');
+      if (status === 422) throw new Error('المتجر غير متاح مؤقتًا أو لم يعد يقبل طلبات جديدة. تواصل مع إدارة المتجر.');
+      throw new Error('تعذر إرسال الطلب. تحقق من الاتصال وحاول مرة أخرى.');
+    }
     if (!data?.ok || !data?.order) throw new Error(data?.error ?? 'تعذر إنشاء الطلب.');
     return { ...(data.order as GuestOrderResult), checkout_url: typeof data.checkout_url === 'string' ? data.checkout_url : undefined };
   },
