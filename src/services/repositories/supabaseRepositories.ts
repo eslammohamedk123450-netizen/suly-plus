@@ -93,6 +93,11 @@ function toOrder(row: any): Order {
       unitPriceMinor: Math.round(Number(line.unit_price) * 100),
     })),
     totalMinor: Math.round(Number(row.total) * 100),
+    subtotalMinor: Math.round(Number(row.subtotal ?? row.total) * 100),
+    discountMinor: Math.round(Number(row.discount_total ?? 0) * 100),
+    shippingMinor: Math.round(Number(row.shipping_total ?? 0) * 100),
+    taxMinor: Math.round(Number(row.tax_total ?? 0) * 100),
+    couponCode: row.coupon_code ?? null,
     createdAt: row.created_at,
   };
 }
@@ -514,6 +519,10 @@ export interface PublicOrderStatus {
   payment_method: string;
   currency: string;
   subtotal: number;
+  discount_total: number;
+  shipping_total: number;
+  tax_total: number;
+  coupon_code: string | null;
   total: number;
   created_at: string;
   items: Array<{ name: string; quantity: number; total_price: number }>;
@@ -604,7 +613,16 @@ export const checkoutRepository = {
     });
     if (error) throw new Error('تعذر تحميل حالة الطلب.');
     if (!data?.ok || !data?.order) throw new Error(data?.error ?? 'لم يتم العثور على الطلب.');
-    return data.order as PublicOrderStatus;
+    const order = data.order;
+    return {
+      ...order,
+      subtotal: Number(order.subtotal ?? 0),
+      discount_total: Number(order.discount_total ?? 0),
+      shipping_total: Number(order.shipping_total ?? 0),
+      tax_total: Number(order.tax_total ?? 0),
+      coupon_code: typeof order.coupon_code === 'string' ? order.coupon_code : null,
+      total: Number(order.total ?? 0),
+    } as PublicOrderStatus;
   },
 };
 
