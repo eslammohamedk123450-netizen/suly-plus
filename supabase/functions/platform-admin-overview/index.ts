@@ -36,13 +36,14 @@ Deno.serve(async (req: Request) => {
     }
 
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-    const [stores, users, orders, recent] = await Promise.all([
+    const [stores, users, orders, recent, audit] = await Promise.all([
       admin.from("stores").select("id", { count: "exact", head: true }),
       admin.from("profiles").select("id", { count: "exact", head: true }),
       admin.from("orders").select("id", { count: "exact", head: true }),
-      admin.from("stores").select("id,name,slug,is_active,created_at").order("created_at", { ascending: false }).limit(5),
+      admin.from("stores").select("id,name,slug,is_active,created_at").order("created_at", { ascending: false }).limit(10),
+      admin.from("platform_admin_audit_log").select("id,action,reason,store_id,created_at,stores(name)").order("created_at", { ascending: false }).limit(10),
     ]);
-    if (stores.error || users.error || orders.error || recent.error) {
+    if (stores.error || users.error || orders.error || recent.error || audit.error) {
       return reply(503, { error: "Platform metrics are temporarily unavailable." });
     }
     return reply(200, {
@@ -53,6 +54,7 @@ Deno.serve(async (req: Request) => {
         orders_count: orders.count ?? 0,
       },
       recent_stores: recent.data ?? [],
+      recent_admin_actions: audit.data ?? [],
     });
   } catch {
     return reply(500, { error: "Unexpected platform admin error." });
