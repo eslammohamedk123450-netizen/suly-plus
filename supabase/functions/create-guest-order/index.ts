@@ -194,10 +194,13 @@ Deno.serve(async (req: Request) => {
 
   if (paymentMethod === "paymob") {
     const integration = Deno.env.get("PAYMOB_INTEGRATION_ID") ?? "";
-    if (!Deno.env.get("PAYMOB_SECRET_KEY") || !Deno.env.get("PAYMOB_PUBLIC_KEY")
-        || !Deno.env.get("PAYMOB_HMAC_SECRET") || !Deno.env.get("SULY_PUBLIC_URL")
-        || !/^\d+$/.test(integration)) {
-      return response(503, { error: "الدفع الإلكتروني غير مهيأ لهذا المتجر بعد. استخدم الدفع عند الاستلام أو تواصل مع المتجر." });
+    const enabledStoreSlug = (Deno.env.get("PAYMOB_ENABLED_STORE_SLUG") ?? "").trim().toLowerCase();
+    const publicOrigin = Deno.env.get("SULY_PUBLIC_URL") ?? "";
+    if (!enabledStoreSlug || enabledStoreSlug !== storeSlug
+        || !Deno.env.get("PAYMOB_SECRET_KEY") || !Deno.env.get("PAYMOB_PUBLIC_KEY")
+        || !Deno.env.get("PAYMOB_HMAC_SECRET") || !publicOrigin.startsWith("https://")
+        || !/^\\d+$/.test(integration)) {
+      return response(503, { error: "Paymob is not enabled for this store. Use cash on delivery or contact the store owner." });
     }
   }
 
