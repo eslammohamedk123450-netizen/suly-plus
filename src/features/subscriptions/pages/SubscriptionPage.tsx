@@ -20,7 +20,9 @@ interface Subscription {
   id: string;
   status: 'trialing' | 'active' | 'past_due' | 'cancelled' | 'suspended';
   billing_interval: 'monthly' | 'yearly' | 'manual';
+  current_period_start: string;
   current_period_end: string | null;
+  trial_end: string | null;
   subscription_plans: Plan | Plan[] | null;
 }
 interface Invoice {
@@ -74,7 +76,7 @@ export function SubscriptionPage() {
       if (!membership) throw new Error('لا تملك صلاحية الوصول إلى هذا المتجر.');
 
       const { data: subRow, error: subError } = await supabase.from('store_subscriptions')
-        .select('id,status,billing_interval,current_period_end,subscription_plans(name,description,currency,monthly_price,yearly_price,max_products,max_team_members,max_monthly_orders,features)')
+        .select('id,status,billing_interval,current_period_start,current_period_end,trial_end,subscription_plans(name,description,currency,monthly_price,yearly_price,max_products,max_team_members,max_monthly_orders,features)')
         .eq('store_id', id).maybeSingle();
       if (subError) throw subError;
       const planValue = Array.isArray(subRow?.subscription_plans) ? subRow.subscription_plans[0] : subRow?.subscription_plans;
@@ -116,6 +118,17 @@ export function SubscriptionPage() {
   const planValue = subscription?.subscription_plans;
   const plan = Array.isArray(planValue) ? planValue[0] : planValue;
   const currentStore = stores.find(store => store.id === storeId);
+  const now = Date.now();
+  const periodStart = subscription?.current_period_start ? Date.parse(subscription.current_period_start) : null;
+  const periodEnd = subscription?.current_period_end ? Date.parse(subscription.current_period_end) : null;
+  const trialEnd = subscription?.trial_end ? Date.parse(subscription.trial_end) : null;
+  const effectiveStatus = subscription
+    ? (periodStart !== null && periodStart > now ? 'upcoming'
+      : (periodEnd !== null && periodEnd <= now) ? 'expired'
+      : (subscription.status === 'trialing' && (trialEnd === null || trialEnd <= now)) ? 'expired'
+      : (subscription.status === 'active' && ['monthly','yearly'].includes(subscription.billing_interval) && periodEnd === null) ? 'expired'
+      : subscription.status)
+    : null;
 
   return <>
     <PageHeader title="اشتراك المتجر والفواتير" description="تابع الخطة الحالية وحدود الاستخدام والفواتير الصادرة لهذا المتجر." />
@@ -137,7 +150,7 @@ export function SubscriptionPage() {
           <section className="rounded-2xl border bg-white p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div><p className="text-sm text-slate-500">الخطة الحالية</p><h2 className="mt-1 text-2xl font-bold">{plan.name}</h2><p className="mt-2 text-sm text-slate-500">{plan.description}</p></div>
-              <span className={subscription.status === 'active' || subscription.status === 'trialing' ? 'rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800' : 'rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-800'}>{statusLabels[subscription.status] ?? subscription.status}</span>
+              <span className={subscription.status === 'active' || subscription.status === 'trialing' ? 'rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800' : 'rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-800'}>{statusLabels[effectiveStatus ?? subscription.status] ?? subscription.status}</span>
             </div>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">السعر الشهري</p><b className="mt-1 block text-lg">{formatMoney(Number(plan.monthly_price), plan.currency)}</b></div>
