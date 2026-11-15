@@ -25,6 +25,7 @@ import { AdminPage } from '../features/admin/pages/AdminPage';
 import { AdminBillingPage } from '../features/admin/pages/AdminBillingPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { TeamPage } from '../features/team/pages/TeamPage';
+import { SubscriptionPage } from '../features/subscriptions/pages/SubscriptionPage';
 
 export default function App() {
   return <Routes>
@@ -49,6 +50,7 @@ export default function App() {
       <Route path="settings" element={<SettingsPage />} />
       <Route path="reports" element={<ReportsPage />} />
       <Route path="team" element={<TeamPage />} />
+      <Route path="subscription" element={<SubscriptionPage />} />
     </Route>
     <Route path="/store/:storeSlug" element={<StorefrontPage />} />
     <Route path="/store/:storeSlug/product/:productId" element={<ProductDetailsPage />} />
