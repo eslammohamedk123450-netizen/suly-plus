@@ -55,3 +55,23 @@ jobs:
             --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_placeholder \
             --tag suly-plus-web:ci .
 
+      - name: Smoke-test production Docker container
+        run: |
+          docker run -d --name suly-plus-smoke \
+            --read-only \
+            --tmpfs /tmp:rw,noexec,nosuid,size=16m \
+            --cap-drop=ALL \
+            --security-opt=no-new-privileges \
+            -p 127.0.0.1:8080:8080 \
+            suly-plus-web:ci
+          trap 'docker rm -f suly-plus-smoke >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/ -o /tmp/suly-index.html; then
+              break
+            fi
+            sleep 1
+          done
+          grep -q 'id="root"' /tmp/suly-index.html
+          curl --fail --silent http://127.0.0.1:8080/account/orders -o /dev/null
+          docker exec suly-plus-smoke nginx -t
+
