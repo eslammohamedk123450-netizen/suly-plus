@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Store } from '../../../domain/types';
-import { checkoutRepository, storeRepository, type CheckoutCartProduct } from '../../../services/repositories/supabaseRepositories';
+import { checkoutRepository, storeRepository, type CheckoutCartProduct, type CheckoutQuote } from '../../../services/repositories/supabaseRepositories';
 import { clearCart, readCart, writeCart, type CartLine } from '../cart';
 
 const money = (amount: number, currency: string) =>
@@ -23,6 +23,11 @@ export function CheckoutPage() {
   const [notes, setNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'paymob'>('cash_on_delivery');
   const [paymentMethods, setPaymentMethods] = useState({ cash_on_delivery: true, paymob: false });
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCouponCode, setAppliedCouponCode] = useState('');
+  const [couponMessage, setCouponMessage] = useState('');
+  const [quote, setQuote] = useState<CheckoutQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -52,6 +57,48 @@ export function CheckoutPage() {
     void load();
     return () => { active = false; };
   }, [storeSlug]);
+
+
+  useEffect(() => {
+    let active = true;
+    if (!store || !cart.length || !products.length || cart.some(line => !products.some(product => product.id === line.productId))) {
+      setQuote(null);
+      setQuoteLoading(false);
+      return () => { active = false; };
+    }
+    setQuote(null);
+    setQuoteLoading(true);
+    checkoutRepository.getCheckoutQuote(
+      store.slug,
+      cart.map(line => ({ product_id: line.productId, quantity: line.quantity })),
+      appliedCouponCode || undefined,
+    ).then(nextQuote => {
+      if (!active) return;
+      setQuote(nextQuote);
+      setCouponMessage(appliedCouponCode ? `تم تطبيق الكوبون ${appliedCouponCode}.` : '');
+      setError('');
+    }).catch(cause => {
+      if (!active) return;
+      const message = cause instanceof Error ? cause.message : 'تعذر حساب إجمالي الطلب.';
+      setCouponMessage(message);
+      if (!appliedCouponCode) setError(message);
+    }).finally(() => {
+      if (active) setQuoteLoading(false);
+    });
+    return () => { active = false; };
+  }, [store, cart, products, appliedCouponCode]);
+
+  function applyCoupon() {
+    const normalized = couponInput.trim().toUpperCase();
+    setCouponMessage(normalized ? 'جارٍ التحقق من الكوبون...' : 'اكتب كود الخصم أولًا.');
+    if (normalized) setAppliedCouponCode(normalized);
+  }
+
+  function removeCoupon() {
+    setAppliedCouponCode('');
+    setCouponInput('');
+    setCouponMessage('تم إلغاء الكوبون.');
+  }
 
   const productMap = useMemo(() => new Map(products.map(product => [product.id, product])), [products]);
   const availableLines = cart.map(line => ({ ...line, product: productMap.get(line.productId) })).filter(line => Boolean(line.product));
@@ -86,6 +133,7 @@ export function CheckoutPage() {
         items: cart.map(line => ({ product_id: line.productId, quantity: line.quantity })),
         payment_method: paymentMethod,
         notes: notes.trim(),
+        coupon_code: appliedCouponCode || null,
       });
       clearCart(storeSlug);
       setCart([]);
@@ -136,14 +184,33 @@ export function CheckoutPage() {
         </section>
         <section><h2 className="text-lg font-bold">ملاحظات الطلب</h2><textarea rows={3} maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} className="mt-3 w-full rounded-xl border p-3" placeholder="أي تفاصيل إضافية للتوصيل (اختياري)" /></section>
         <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{paymentMethod === 'paymob' ? 'سيتم تحويلك إلى صفحة Paymob الآمنة. حالة الدفع ستتحدث بعد وصول التأكيد الموثوق من بوابة الدفع.' : 'ستدفع نقدًا عند استلام الطلب. لا يتم تحصيل أي مبلغ إلكتروني.'}</div>
-        <button disabled={submitting || missingProducts || stockExceeded || (paymentMethod === 'paymob' && !paymentMethods.paymob)} className="btn-primary w-full disabled:opacity-50">{submitting ? 'جارٍ تسجيل الطلب...' : paymentMethod === 'paymob' ? 'المتابعة إلى الدفع الإلكتروني' : 'تأكيد الطلب'}</button>
+        <button disabled={submitting || quoteLoading || !quote || missingProducts || stockExceeded || (paymentMethod === 'paymob' && !paymentMethods.paymob)} className="btn-primary w-full disabled:opacity-50">{submitting ? 'جارٍ تسجيل الطلب...' : paymentMethod === 'paymob' ? 'المتابعة إلى الدفع الإلكتروني' : 'تأكيد الطلب'}</button>
       </form>
       <aside className="h-fit rounded-2xl border bg-white p-6"><h2 className="text-lg font-bold">ملخص الطلب</h2>
         <div className="mt-5 space-y-4">{availableLines.map(line => <div key={line.productId} className="flex items-start justify-between gap-4 border-b pb-3 text-sm"><div className="min-w-0"><p className="font-medium">{line.product?.name}</p><div className="mt-2 flex items-center gap-2"><button type="button" aria-label="تقليل الكمية" onClick={() => changeQuantity(line.productId, line.quantity - 1)} className="grid h-7 w-7 place-items-center rounded-md border">−</button><span className="min-w-5 text-center">{line.quantity}</span><button type="button" aria-label="زيادة الكمية" onClick={() => changeQuantity(line.productId, line.quantity + 1)} className="grid h-7 w-7 place-items-center rounded-md border" disabled={line.quantity >= 100}>+</button><button type="button" onClick={() => changeQuantity(line.productId, 0)} className="mr-2 text-xs text-red-600">حذف</button></div></div><b className="whitespace-nowrap">{money((line.product?.price ?? 0) * line.quantity, store.currency)}</b></div>)}</div>
         {missingProducts && <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">أحد المنتجات لم يعد متاحًا. ارجع للمتجر وحدّث السلة.</p>}
         {availableLines.some(line => line.product?.track_inventory && line.product.stock_quantity < line.quantity) && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">بعض الكميات أكبر من المخزون المتاح؛ سيُعاد التحقق عند إرسال الطلب.</p>}
-        <div className="mt-6 flex justify-between border-t pt-5"><span className="font-semibold">الإجمالي</span><strong className="text-xl">{money(subtotal, store.currency)}</strong></div>
-        <p className="mt-2 text-xs text-slate-500">الشحن والضرائب غير مضافين حاليًا؛ سيظهر المبلغ النهائي الذي يحسبه الخادم في الطلب.</p>
+        <div className="mt-5 border-t pt-5">
+          <label htmlFor="checkout-coupon" className="text-sm font-semibold">كود الخصم</label>
+          <div className="mt-2 flex gap-2">
+            <input id="checkout-coupon" value={couponInput} onChange={event => setCouponInput(event.target.value.toUpperCase())}
+              maxLength={40} placeholder="اكتب الكود" className="min-w-0 flex-1 rounded-xl border px-3 py-2 font-mono uppercase" />
+            <button type="button" onClick={applyCoupon} disabled={quoteLoading || !cart.length}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">تطبيق</button>
+            {appliedCouponCode && <button type="button" onClick={removeCoupon} className="rounded-xl border px-3 py-2 text-sm">إزالة</button>}
+          </div>
+          {couponMessage && <p role="status" className={`mt-2 text-xs ${quote?.coupon_code ? 'text-emerald-700' : 'text-slate-500'}`}>{couponMessage}</p>}
+        </div>
+        <div className="mt-5 space-y-3 border-t pt-5 text-sm">
+          <div className="flex justify-between"><span className="text-slate-600">قيمة المنتجات</span><span>{money(quote?.subtotal ?? subtotal, store.currency)}</span></div>
+          {(quote?.discount_total ?? 0) > 0 && <div className="flex justify-between text-emerald-700"><span>الخصم{quote?.coupon_code ? ` (${quote.coupon_code})` : ''}</span><span>−{money(quote?.discount_total ?? 0, store.currency)}</span></div>}
+          <div className="flex justify-between"><span className="text-slate-600">الشحن</span><span>{quote ? quote.shipping_total === 0 ? 'مجاني' : money(quote.shipping_total, store.currency) : '—'}</span></div>
+          <div className="flex justify-between"><span className="text-slate-600">الضريبة {quote && quote.tax_rate > 0 ? `(${quote.tax_rate}%)` : ''}</span><span>{quote ? money(quote.tax_total, store.currency) : '—'}</span></div>
+          <div className="flex justify-between border-t pt-4 text-base"><span className="font-bold">الإجمالي النهائي</span>
+            <strong className="text-xl">{quote ? money(quote.total, store.currency) : quoteLoading ? 'جارٍ الحساب...' : '—'}</strong>
+          </div>
+        </div>
+        <p className="mt-3 text-xs leading-6 text-slate-500">السعر المعروض هنا محسوب من قاعدة البيانات. يعيد الخادم التحقق من أسعار المنتجات والمخزون والكوبون والشحن والضريبة عند تأكيد الطلب.</p>
       </aside>
     </div>}
   </main>;
