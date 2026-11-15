@@ -9,6 +9,7 @@ import { RegisterPage } from '../features/auth/pages/RegisterPage';
 import { CreateStorePage } from '../features/stores/pages/CreateStorePage';
 import { DashboardPage } from '../features/dashboard/pages/DashboardPage';
 import { ProductsPage } from '../features/products/pages/ProductsPage';
+import { CategoriesPage } from '../features/categories/pages/CategoriesPage';
 import { OrdersPage } from '../features/orders/pages/OrdersPage';
 import { CustomersPage } from '../features/customers/pages/CustomersPage';
 import { InventoryPage } from '../features/inventory/pages/InventoryPage';
@@ -32,6 +33,7 @@ export default function App() {
     <Route path="/dashboard" element={<DashboardLayout />}>
       <Route index element={<DashboardPage />} />
       <Route path="products" element={<ProductsPage />} />
+      <Route path="categories" element={<CategoriesPage />} />
       <Route path="orders" element={<OrdersPage />} />
       <Route path="customers" element={<CustomersPage />} />
       <Route path="inventory" element={<InventoryPage />} />
