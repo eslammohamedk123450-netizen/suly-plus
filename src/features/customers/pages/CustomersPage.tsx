@@ -1,0 +1,1 @@
+import {PageHeader} from '../../../shared/components/PageHeader'; export function CustomersPage(){return <><PageHeader title="العملاء" description="بيانات العملاء وسجل تعاملاتهم."/><div className="rounded-2xl border bg-white p-8 text-center text-slate-500">بيانات العملاء غير متصلة حاليًا.</div></>}
