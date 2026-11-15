@@ -20,7 +20,7 @@
 | `PAYMOB_HMAC_SECRET` | قيمة HMAC Secret من إعدادات Paymob |
 | `SULY_PUBLIC_URL` | عنوان HTTPS العام للواجهة الأمامية، دون / في النهاية |
 | `PAYMOB_ENABLED_STORE_SLUG` | رابط متجر الاختبار الوحيد المسموح له باستخدام حساب Paymob هذا |
-| `PAYMOB_API_KEY` | مفتاح API للاستعلام الاحتياطي عن المعاملة عند تأخر Callback (اختياري) |
+| `PAYMOB_API_KEY` | مفتاح API من Paymob Dashboard → Settings → API Keys للاستعلام الاحتياطي (اختياري) |
 
 لا ترسل المفاتيح في المحادثة ولا تضفها إلى `.env.local` أو GitHub أو أي متغير يبدأ بـ `VITE_`. مفتاح `PAYMOB_API_KEY` اختياري للفحص الاحتياطي، لكنه يجب أن يبقى Secret داخل Supabase مثل بقية المفاتيح.
 
