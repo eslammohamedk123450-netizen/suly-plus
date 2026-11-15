@@ -24,7 +24,18 @@ interface Invoice {
   status: string; due_at: string | null; paid_at: string | null; memo: string | null;
   payment_reference: string | null; stores: { name: string; slug: string } | null;
 }
-interface BillingData { plans: Plan[]; stores: StoreOption[]; subscriptions: Subscription[]; invoices: Invoice[] }
+interface BillingAudit {
+  id: string;
+  actor_id: string | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  store_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+  stores: { name: string } | null;
+}
+interface BillingData { plans: Plan[]; stores: StoreOption[]; subscriptions: Subscription[]; invoices: Invoice[]; audit: BillingAudit[] }
 
 const statusLabels: Record<SubscriptionStatus, string> = {
   trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد',
@@ -34,6 +45,16 @@ const invoiceLabels: Record<string, string> = {
   draft: 'مسودة', open: 'مفتوحة', paid: 'مدفوعة', void: 'ملغاة', uncollectible: 'متعذر تحصيلها',
 };
 const intervalLabels: Record<BillingInterval, string> = { monthly: 'شهري', yearly: 'سنوي', manual: 'يدوي' };
+const billingAuditLabels: Record<string, string> = {
+  plan_created: 'إنشاء خطة',
+  plan_updated: 'تعديل خطة',
+  plan_activated: 'تفعيل خطة',
+  plan_deactivated: 'إيقاف خطة',
+  subscription_assigned: 'تعيين اشتراك',
+  subscription_status_changed: 'تغيير حالة اشتراك',
+  invoice_created: 'إنشاء فاتورة',
+  invoice_marked_paid: 'تسجيل سداد يدوي',
+};
 
 function numericLimit(value: string) {
   if (!value.trim()) return null;
@@ -46,7 +67,7 @@ function money(value: number, currency: string) {
 }
 
 export function AdminBillingPage() {
-  const [data, setData] = useState<BillingData>({ plans: [], stores: [], subscriptions: [], invoices: [] });
+  const [data, setData] = useState<BillingData>({ plans: [], stores: [], subscriptions: [], invoices: [], audit: [] });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -95,6 +116,7 @@ export function AdminBillingPage() {
         stores: Array.isArray(response.stores) ? response.stores : [],
         subscriptions: Array.isArray(response.subscriptions) ? response.subscriptions : [],
         invoices: Array.isArray(response.invoices) ? response.invoices : [],
+        audit: Array.isArray(response.audit) ? response.audit : [],
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'حدث خطأ أثناء تحميل الفوترة.');
@@ -129,7 +151,9 @@ export function AdminBillingPage() {
         if (status === 403) throw new Error('ليس لديك صلاحية تنفيذ هذا الإجراء.');
         throw new Error(typeof response?.error === 'string' ? response.error : 'تعذر تنفيذ الإجراء.');
       }
-      setNotice(successMessage);
+      setNotice(response.audit_recorded === false
+        ? `${successMessage} تنبيه: تعذر تسجيل الإجراء في سجل التدقيق؛ راجع سجلات الخدمة.`
+        : successMessage);
       await load();
       return true;
     } catch (cause) {
@@ -275,6 +299,22 @@ export function AdminBillingPage() {
             <label className="text-sm font-medium md:col-span-2 xl:col-span-3">ملاحظات الفاتورة<textarea rows={2} maxLength={1000} value={invoiceMemo} onChange={event => setInvoiceMemo(event.target.value)} className="mt-2 w-full rounded-xl border p-3"/></label>
             <div className="md:col-span-2 xl:col-span-3"><button disabled={saving} className="btn-primary disabled:opacity-50">إنشاء الفاتورة</button></div>
           </form>
+        </section>
+
+        <section className="mt-8 overflow-hidden rounded-2xl border bg-white">
+          <div className="border-b p-5">
+            <h2 className="font-bold">سجل تدقيق الخطط والفوترة</h2>
+            <p className="mt-1 text-xs text-slate-500">آخر 100 إجراء إداري، مع هوية الإجراء وتاريخه والمتجر المرتبط إن وجد.</p>
+          </div>
+          {!data.audit.length ? <p className="p-8 text-center text-sm text-slate-500">لم تُسجل إجراءات فوترة بعد.</p>
+            : <div className="divide-y">{data.audit.map(item => <article key={item.id} className="p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <b className="text-sm">{billingAuditLabels[item.action] ?? item.action}</b>
+                <time className="text-xs text-slate-400">{new Date(item.created_at).toLocaleString('ar-EG')}</time>
+              </div>
+              <p className="mt-1 text-sm text-slate-600">{item.stores?.name ?? (item.target_type === 'plan' ? 'خطة عامة' : '—')}</p>
+              {item.details && Object.keys(item.details).length > 0 && <p className="mt-2 break-words text-xs text-slate-500">{Object.entries(item.details).map(([key,value]) => `${key}: ${String(value ?? '—')}`).join(' · ')}</p>}
+            </article>)}</div>}
         </section>
 
         <section className="overflow-hidden rounded-2xl border bg-white">
