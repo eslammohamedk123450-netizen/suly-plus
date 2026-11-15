@@ -21,6 +21,11 @@ function amount(value: unknown): number {
   const parsed = typeof value === "number" ? value : Number(value ?? 0);
   return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed * 100) / 100 : 0;
 }
+function clientIp(req: Request): string {
+  return req.headers.get("cf-connecting-ip")
+    ?? req.headers.get("x-real-ip")
+    ?? "unknown";
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -56,6 +61,12 @@ Deno.serve(async (req: Request) => {
         }
         normalizedItems.push({ product_id: line.product_id.toLowerCase(), quantity: Number(line.quantity) });
       }
+      const { data: allowed, error: rateError } = await admin.rpc("consume_checkout_rate_limit", {
+        p_ip_address: `checkout-quote:${clientIp(req)}`,
+      });
+      if (rateError) return response(503, { error: "تعذر التحقق من طلب التسعير. حاول مرة أخرى." });
+      if (allowed !== true) return response(429, { error: "طلبات التسعير كثيرة. انتظر قليلًا ثم حاول مرة أخرى." });
+
       const { data, error } = await admin.rpc("get_guest_checkout_quote", {
         p_store_slug: storeSlug,
         p_items: normalizedItems,
