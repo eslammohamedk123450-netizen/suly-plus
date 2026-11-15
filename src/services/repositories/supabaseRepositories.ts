@@ -267,6 +267,37 @@ export const customerRepository: CustomerRepository = {
     return { items, total: count ?? 0, page, pageSize: 20 };
   },
 };
+export interface InventoryMovement {
+  id: string;
+  product_id: string;
+  quantity_delta: number;
+  reason: string;
+  created_at: string;
+}
+
+export const inventoryRepository = {
+  async listMovements(storeId: string, limit = 20): Promise<InventoryMovement[]> {
+    const { data, error } = await getSupabase()
+      .from('inventory_movements')
+      .select('id, product_id, quantity_delta, reason, created_at')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false })
+      .limit(Math.max(1, Math.min(limit, 100)));
+    fail(error);
+    return (data ?? []) as InventoryMovement[];
+  },
+
+  async adjustStock(storeId: string, productId: string, variantId: string, quantityDelta: number): Promise<void> {
+    const { error } = await getSupabase().rpc('adjust_product_stock', {
+      p_store_id: storeId,
+      p_product_id: productId,
+      p_variant_id: variantId,
+      p_quantity_delta: quantityDelta,
+    });
+    fail(error);
+  },
+};
+
 export interface CheckoutCartProduct {
   id: string;
   name: string;
