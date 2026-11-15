@@ -228,3 +228,87 @@ export const customerRepository: CustomerRepository = {
     return { items, total: count ?? 0, page, pageSize: 20 };
   },
 };
+export interface CheckoutCartProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  currency: string;
+  stock_quantity: number;
+  track_inventory: boolean;
+  images: string[];
+}
+
+export interface GuestOrderResult {
+  order_id: string;
+  order_number: number;
+  public_token: string;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  currency: string;
+  subtotal: number;
+  total: number;
+  created_at: string;
+}
+
+export interface PublicOrderStatus {
+  order_number: number;
+  status: string;
+  payment_status: string;
+  payment_method: string;
+  currency: string;
+  subtotal: number;
+  total: number;
+  created_at: string;
+  items: Array<{ name: string; quantity: number; total_price: number }>;
+}
+
+export const checkoutRepository = {
+  async getProducts(storeId: string, productIds: string[]): Promise<CheckoutCartProduct[]> {
+    if (!productIds.length) return [];
+    const { data, error } = await getSupabase()
+      .from('products')
+      .select('id, name, description, price, currency, stock_quantity, track_inventory, images, status')
+      .eq('store_id', storeId)
+      .eq('status', 'active')
+      .in('id', productIds);
+    fail(error);
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      price: Number(row.price),
+      currency: row.currency,
+      stock_quantity: row.stock_quantity,
+      track_inventory: row.track_inventory,
+      images: row.images ?? [],
+    }));
+  },
+
+  async createGuestOrder(input: {
+    store_slug: string;
+    customer_name: string;
+    customer_email: string;
+    customer_phone: string;
+    shipping_address: { address: string; city: string; governorate: string; postal_code: string };
+    items: Array<{ product_id: string; quantity: number }>;
+    payment_method: 'cash_on_delivery';
+    notes?: string;
+  }): Promise<GuestOrderResult> {
+    const { data, error } = await getSupabase().functions.invoke('create-guest-order', { body: input });
+    if (error) throw new Error('تعذر إرسال الطلب. تحقق من الاتصال وحاول مرة أخرى.');
+    if (!data?.ok || !data?.order) throw new Error(data?.error ?? 'تعذر إنشاء الطلب.');
+    return data.order as GuestOrderResult;
+  },
+
+  async getOrderStatus(orderNumber: number, publicToken: string): Promise<PublicOrderStatus> {
+    const { data, error } = await getSupabase().functions.invoke('get-order-status', {
+      body: { order_number: orderNumber, public_token: publicToken },
+    });
+    if (error) throw new Error('تعذر تحميل حالة الطلب.');
+    if (!data?.ok || !data?.order) throw new Error(data?.error ?? 'لم يتم العثور على الطلب.');
+    return data.order as PublicOrderStatus;
+  },
+};
+
