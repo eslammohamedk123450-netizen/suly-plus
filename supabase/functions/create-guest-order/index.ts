@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { isPaymobIntegrationId } from "../_shared/paymob.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -47,7 +47,7 @@ async function startPaymobCheckout(
   const publicOrigin = Deno.env.get("SULY_PUBLIC_URL");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
 
-  if (!secretKey || !publicKey || !/^\d+$/.test(integrationIdRaw) || !publicOrigin || !supabaseUrl) {
+  if (!secretKey || !publicKey || !isPaymobIntegrationId(integrationIdRaw) || !publicOrigin || !supabaseUrl) {
     throw new Error("Paymob is not configured.");
   }
 
@@ -199,7 +199,7 @@ Deno.serve(async (req: Request) => {
     if (!enabledStoreSlug || enabledStoreSlug !== storeSlug
         || !Deno.env.get("PAYMOB_SECRET_KEY") || !Deno.env.get("PAYMOB_PUBLIC_KEY")
         || !Deno.env.get("PAYMOB_HMAC_SECRET") || !publicOrigin.startsWith("https://")
-        || !/^\\d+$/.test(integration)) {
+        || !isPaymobIntegrationId(integration)) {
       return response(503, { error: "Paymob is not enabled for this store. Use cash on delivery or contact the store owner." });
     }
   }
