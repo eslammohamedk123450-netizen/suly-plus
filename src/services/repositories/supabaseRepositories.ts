@@ -121,8 +121,7 @@ export const storeRepository: StoreRepository = {
         store_name: input.name.trim(),
         store_slug: slug,
         store_currency: input.currency,
-      })
-      .single();
+      });
     fail(error);
     return toStore(data);
   },
