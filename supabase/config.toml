@@ -21,3 +21,6 @@ verify_jwt = true
 
 [functions.manage-store-team]
 verify_jwt = true
+
+[functions.platform-admin-billing]
+verify_jwt = true
