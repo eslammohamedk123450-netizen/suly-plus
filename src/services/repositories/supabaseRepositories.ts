@@ -460,14 +460,51 @@ export interface GuestOrderResult {
   payment_method: string;
   currency: string;
   subtotal: number;
+  discount_total?: number;
+  shipping_total?: number;
+  tax_total?: number;
+  coupon_code?: string | null;
   total: number;
   created_at: string;
   checkout_url?: string;
 }
 
+export interface CheckoutPricingSettings {
+  shipping_fee: number;
+  free_shipping_threshold: number;
+  tax_rate: number;
+}
+
 export interface CheckoutMethods {
   cash_on_delivery: boolean;
   paymob: boolean;
+  pricing: CheckoutPricingSettings;
+}
+
+export interface CheckoutQuote {
+  subtotal: number;
+  discount_total: number;
+  shipping_total: number;
+  tax_total: number;
+  tax_rate: number;
+  total: number;
+  coupon_code: string | null;
+  currency: string;
+}
+
+export interface StoreCoupon {
+  id: string;
+  store_id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  minimum_subtotal: number;
+  max_uses: number | null;
+  used_count: number;
+  starts_at: string | null;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface PublicOrderStatus {
@@ -509,10 +546,38 @@ export const checkoutRepository = {
       method: 'GET',
       headers: { 'x-store-slug': storeSlug },
     });
-    if (error || !data?.methods) return { cash_on_delivery: true, paymob: false };
+    if (error || !data?.methods) return {
+      cash_on_delivery: true, paymob: false,
+      pricing: { shipping_fee: 0, free_shipping_threshold: 0, tax_rate: 0 },
+    };
     return {
       cash_on_delivery: data.methods.cash_on_delivery === true,
       paymob: data.methods.paymob === true,
+      pricing: {
+        shipping_fee: Number(data.pricing?.shipping_fee ?? 0),
+        free_shipping_threshold: Number(data.pricing?.free_shipping_threshold ?? 0),
+        tax_rate: Number(data.pricing?.tax_rate ?? 0),
+      },
+    };
+  },
+
+  async getCheckoutQuote(storeSlug: string, items: Array<{ product_id: string; quantity: number }>, couponCode?: string): Promise<CheckoutQuote> {
+    const { data, error } = await getSupabase().functions.invoke('get-checkout-methods', {
+      method: 'POST',
+      body: { store_slug: storeSlug, items, coupon_code: couponCode || null },
+    });
+    if (error) throw new Error('تعذر حساب السعر النهائي من الخادم. حاول تحديث الصفحة.');
+    if (!data?.ok || !data?.quote) throw new Error(data?.error ?? 'تعذر حساب سعر الطلب.');
+    const quote = data.quote;
+    return {
+      subtotal: Number(quote.subtotal ?? 0),
+      discount_total: Number(quote.discount_total ?? 0),
+      shipping_total: Number(quote.shipping_total ?? 0),
+      tax_total: Number(quote.tax_total ?? 0),
+      tax_rate: Number(quote.tax_rate ?? 0),
+      total: Number(quote.total ?? 0),
+      coupon_code: quote.coupon_code ?? null,
+      currency: String(quote.currency ?? 'EGP'),
     };
   },
 
@@ -525,6 +590,7 @@ export const checkoutRepository = {
     items: Array<{ product_id: string; quantity: number }>;
     payment_method: 'cash_on_delivery' | 'paymob';
     notes?: string;
+    coupon_code?: string | null;
   }): Promise<GuestOrderResult> {
     const { data, error } = await getSupabase().functions.invoke('create-guest-order', { body: input });
     if (error) throw new Error('تعذر إرسال الطلب. تحقق من الاتصال وحاول مرة أخرى.');
