@@ -24,3 +24,6 @@ verify_jwt = true
 
 [functions.platform-admin-billing]
 verify_jwt = true
+
+[functions.get-my-orders]
+verify_jwt = true
