@@ -39,6 +39,9 @@ function messageFor(error: unknown, fallback: string): Error {
   const status = (error as { context?: { status?: number } } | null)?.context?.status;
   if (status === 403) return new Error('إدارة الفريق متاحة لمالك المتجر فقط.');
   if (status === 401) return new Error('انتهت جلسة الدخول. سجّل الدخول مرة أخرى.');
+  if (status === 422) return new Error('اشتراك المتجر غير نشط أو تم الوصول إلى الحد الأقصى لأعضاء الفريق في الخطة الحالية.');
+  if (status === 409) return new Error('الحساب موجود بالفعل في المتجر، أو يحتاج إلى تأكيد بريده الإلكتروني أولًا.');
+  if (status === 502 || status === 503) return new Error('تعذر إكمال الدعوة أو تحميل بيانات الفريق. تحقق من إعدادات البريد والاتصال.');
   return new Error(fallback);
 }
 
