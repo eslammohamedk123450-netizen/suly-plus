@@ -18,7 +18,7 @@ RUN test -n "$VITE_SUPABASE_URL" \
     && npm run build
 
 # Serve only the static build. NGINX runs as an unprivileged user on port 8080.
-FROM nginxinc/nginx-unprivileged:alpine AS runtime
+FROM nginx/nginx-unprivileged:alpine AS runtime
 
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 COPY --chown=nginx:nginx deploy/nginx.conf /etc/nginx/conf.d/default.conf
