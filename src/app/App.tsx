@@ -22,6 +22,7 @@ import { CheckoutPage } from '../features/storefront/pages/CheckoutPage';
 import { OrderTrackingPage } from '../features/storefront/pages/OrderTrackingPage';
 import { NotFoundPage } from '../shared/pages/NotFoundPage';
 import { AdminPage } from '../features/admin/pages/AdminPage';
+import { ReportsPage } from '../features/reports/pages/ReportsPage';
 
 export default function App() {
   return <Routes>
@@ -43,6 +44,7 @@ export default function App() {
       <Route path="inventory" element={<InventoryPage />} />
       <Route path="design" element={<StoreDesignPage />} />
       <Route path="settings" element={<SettingsPage />} />
+      <Route path="reports" element={<ReportsPage />} />
     </Route>
     <Route path="/store/:storeSlug" element={<StorefrontPage />} />
     <Route path="/store/:storeSlug/product/:productId" element={<ProductDetailsPage />} />
