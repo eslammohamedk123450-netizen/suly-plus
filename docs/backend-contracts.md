@@ -22,6 +22,8 @@ Suly Plus uses Supabase directly through the browser-safe publishable key and se
 - Product creation and its initial variant are created together through the `create_product` invoker RPC and tenant-scoped RLS policies.
 - Product edits use the `update_product` invoker RPC, which updates the base product and its single supported primary variant in one transaction.
 - Manual stock differences caused by product edits are written to `inventory_movements` with the authenticated actor and `product_edit` reason.
+- The inventory dashboard reads store-scoped movement history and calls `adjust_product_stock` for manual additions/removals. The invoker RPC locks product and variant rows, rejects negative balances, synchronizes both stock values, and writes one `manual_adjustment` ledger row atomically.
+- Manual adjustments are currently limited to products with exactly one variant; multi-variant inventory is not yet supported.
 - Products are archived rather than hard-deleted from the dashboard, preserving historical order snapshots and product references.
 - The dashboard currently edits products with one primary variant. Multi-variant editing, image upload UI, and category management are not yet available.
 - Product images are stored in the `store-assets` bucket. Upload paths begin with the store UUID, but the merchant image management UI is not yet implemented.
