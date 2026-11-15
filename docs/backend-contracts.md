@@ -9,6 +9,9 @@ Suly Plus uses Supabase directly through the browser-safe publishable key and se
 
 ## Tenant isolation
 - Every store-owned row contains `store_id`.
+- Membership RLS predicates compare the membership `store_id` to the current row, not to itself.
+- Client table grants are explicitly limited; anonymous users can only read public catalog data, and authenticated users receive only the CRUD rights required by each dashboard feature.
+- Default privileges for new public-schema objects created by the project migration owner revoke table, sequence, and function access from `anon` and `authenticated` unless explicitly granted.
 - RLS is enabled on every application table in the exposed `public` schema.
 - Public storefront reads expose only active stores and published products.
 - Merchant reads and writes are checked against store membership and role.
@@ -16,9 +19,12 @@ Suly Plus uses Supabase directly through the browser-safe publishable key and se
 
 ## Catalog and inventory
 - Product and variant records are persisted in PostgreSQL.
-- Product creation and its initial variant are created together through a database RPC.
-- Product images are stored in the `store-assets` bucket. Upload paths begin with the store UUID.
-- Inventory movements record stock changes.
+- Product creation and its initial variant are created together through the `create_product` invoker RPC and tenant-scoped RLS policies.
+- Product edits use the `update_product` invoker RPC, which updates the base product and its single supported primary variant in one transaction.
+- Manual stock differences caused by product edits are written to `inventory_movements` with the authenticated actor and `product_edit` reason.
+- Products are archived rather than hard-deleted from the dashboard, preserving historical order snapshots and product references.
+- The dashboard currently edits products with one primary variant. Multi-variant editing, image upload UI, and category management are not yet available.
+- Product images are stored in the `store-assets` bucket. Upload paths begin with the store UUID, but the merchant image management UI is not yet implemented.
 
 ## Checkout
 The public storefront stores cart line IDs and quantities in browser storage. It does not store trusted prices.
