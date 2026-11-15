@@ -40,7 +40,7 @@ Prices are always loaded from PostgreSQL. Values sent by the browser are identif
 - Customer email, phone, and delivery address are not returned.
 
 ## Paymob
-- `get-checkout-methods` tells the storefront whether Paymob secrets have been configured.
+- `get-checkout-methods` tells the storefront whether Paymob secrets have been configured for the single store slug allowed by `PAYMOB_ENABLED_STORE_SLUG`. The checkout Edge Function enforces this allowlist again server-side.
 - `create-guest-order` creates a pending Paymob order, creates a Paymob Intention server-side, and returns only the hosted checkout URL and safe order summary.
 - The secret key is sent only in the server-side `Authorization: Token` header when calling Paymob's Egypt Intention API.
 - `paymob-webhook` verifies the Transaction Processed Callback HMAC-SHA512 using the documented field order, rejects malformed signatures, verifies the configured Integration ID, validates order reference, amount and currency, and updates payment state through a service-role-only database function.
@@ -48,7 +48,7 @@ Prices are always loaded from PostgreSQL. Values sent by the browser are identif
 - The browser redirect is a user-experience route only; the verified Webhook is the payment source of truth.
 
 ## Current payment account model
-Current Paymob environment variables configure one platform-level merchant account for the Suly Plus project. This is suitable only for controlled development/testing under that merchant account. It is not per-store merchant onboarding or marketplace settlement. Before enabling Paymob for independent sellers, implement a Paymob-approved submerchant/marketplace settlement model or encrypted per-store merchant credentials with independent ownership verification.
+Current Paymob environment variables configure one platform-level merchant account for the Suly Plus project. `PAYMOB_ENABLED_STORE_SLUG` restricts that account to one explicitly selected test store; other stores cannot use it. This is suitable only for controlled development/testing under that merchant account. It is not per-store merchant onboarding or marketplace settlement. Before enabling Paymob for independent sellers, implement a Paymob-approved submerchant/marketplace settlement model or encrypted per-store merchant credentials with independent ownership verification.
 
 ## Payment limitations
 - Cash on delivery remains available.
