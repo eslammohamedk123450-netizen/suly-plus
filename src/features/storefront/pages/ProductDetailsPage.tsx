@@ -42,7 +42,8 @@ export function ProductDetailsPage() {
   if (loading) return <main className="container-shell py-20 text-center text-slate-500">جارٍ تحميل المنتج...</main>;
   if (error) return <main className="container-shell py-20 text-center text-red-600">{error}</main>;
   if (!store || !product) return <main className="container-shell py-20 text-center"><h1 className="text-2xl font-bold">المنتج غير متاح</h1><Link to={'/store/' + storeSlug} className="mt-4 inline-block text-brand-600">العودة للمتجر</Link></main>;
-  const maxQuantity = product.track_inventory ? Math.max(0, Math.min(100, product.stock_quantity)) : 100;
+  const alreadyInCart = readCart(storeSlug).find(line => line.productId === productId)?.quantity ?? 0;
+  const maxQuantity = Math.max(0, Math.min(100 - alreadyInCart, product.track_inventory ? product.stock_quantity - alreadyInCart : 100 - alreadyInCart));
   return <main className="container-shell max-w-6xl py-10">
     <div className="mb-6 flex items-center justify-between"><Link to={'/store/' + storeSlug} className="text-sm text-brand-600">العودة للمتجر</Link><Link to={'/store/' + storeSlug + '/cart'} className="text-sm text-brand-600">السلة ({cartCount})</Link></div>
     <div className="grid gap-8 rounded-2xl border bg-white p-5 md:grid-cols-2 md:p-8"><section>
