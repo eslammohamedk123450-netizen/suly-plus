@@ -4,6 +4,7 @@ import { PageHeader } from '../../../shared/components/PageHeader';
 import type { Store } from '../../../domain/types';
 import { storeRepository } from '../../../services/repositories/supabaseRepositories';
 import { getSupabase } from '../../../services/supabase/client';
+import { getEffectiveSubscriptionStatus } from '../subscriptionStatus';
 
 interface Plan {
   name: string;
@@ -118,17 +119,13 @@ export function SubscriptionPage() {
   const planValue = subscription?.subscription_plans;
   const plan = Array.isArray(planValue) ? planValue[0] : planValue;
   const currentStore = stores.find(store => store.id === storeId);
-  const now = Date.now();
-  const periodStart = subscription?.current_period_start ? Date.parse(subscription.current_period_start) : null;
-  const periodEnd = subscription?.current_period_end ? Date.parse(subscription.current_period_end) : null;
-  const trialEnd = subscription?.trial_end ? Date.parse(subscription.trial_end) : null;
-  const effectiveStatus = subscription
-    ? (periodStart !== null && periodStart > now ? 'upcoming'
-      : (periodEnd !== null && periodEnd <= now) ? 'expired'
-      : (subscription.status === 'trialing' && (trialEnd === null || trialEnd <= now)) ? 'expired'
-      : (subscription.status === 'active' && ['monthly','yearly'].includes(subscription.billing_interval) && periodEnd === null) ? 'expired'
-      : subscription.status)
-    : null;
+  const effectiveStatus = subscription ? getEffectiveSubscriptionStatus({
+    status: subscription.status,
+    billingInterval: subscription.billing_interval,
+    currentPeriodStart: subscription.current_period_start,
+    currentPeriodEnd: subscription.current_period_end,
+    trialEnd: subscription.trial_end,
+  }) : null;
 
   return <>
     <PageHeader title="اشتراك المتجر والفواتير" description="تابع الخطة الحالية وحدود الاستخدام والفواتير الصادرة لهذا المتجر." />
