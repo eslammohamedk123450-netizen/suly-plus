@@ -13,6 +13,7 @@ export interface Product { id: ID; storeId: ID; kind: ProductKind; name: string;
 export interface OrderLine { productId: ID; variantId: ID; name: string; quantity: number; unitPriceMinor: number }
 export interface Order {
   id: ID;
+  orderNumber: number;
   storeId: ID;
   customerId: ID;
   customerName: string;
