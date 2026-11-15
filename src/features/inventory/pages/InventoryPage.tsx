@@ -1,0 +1,1 @@
+import {PageHeader} from '../../../shared/components/PageHeader'; export function InventoryPage(){return <><PageHeader title="المخزون" description="متابعة كميات المنتجات ومستويات المخزون."/><div className="rounded-2xl border bg-white p-8 text-center text-slate-500">بيانات المخزون ستظهر بعد ربط الخدمة.</div></>}
