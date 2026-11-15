@@ -1,5 +1,5 @@
-import type { Customer, Order, OrderStatus, OrderStatusHistory, Product, Store, User } from '../../domain/types';
-import type { AuthRepository, CustomerRepository, OrderRepository, ProductRepository, StoreRepository } from './contracts';
+import type { Category, Customer, Order, OrderStatus, OrderStatusHistory, Product, Store, User } from '../../domain/types';
+import type { AuthRepository, CategoryRepository, CustomerRepository, OrderRepository, ProductRepository, StoreRepository } from './contracts';
 import { getSupabase } from '../supabase/client';
 import { createProductSlug } from '../../features/products/productSlug';
 
@@ -19,6 +19,25 @@ function toStore(row: any): Store {
   return { id: row.id, ownerId: row.created_by, name: row.name, slug: row.slug, currency: row.currency };
 }
 
+function toCategory(row: any): Category {
+  return {
+    id: row.id,
+    storeId: row.store_id,
+    name: row.name,
+    slug: row.slug,
+    description: row.description ?? '',
+    sortOrder: row.sort_order ?? 0,
+    isActive: Boolean(row.is_active),
+  };
+}
+
+function categorySlug(name: string): string {
+  const slug = name.normalize('NFKC').trim().toLocaleLowerCase()
+    .replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+  return slug || `category-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+const CATEGORY_SELECT = 'id, store_id, name, slug, description, sort_order, is_active';
 const PRODUCT_SELECT = 'id, store_id, category_id, name, slug, description, sku, status, price, currency, stock_quantity, track_inventory, images, created_at, updated_at, product_variants(*)';
 
 function toProduct(row: any): Product {
@@ -41,6 +60,7 @@ function toProduct(row: any): Product {
   return {
     id: row.id,
     storeId: row.store_id,
+    categoryId: row.category_id ?? null,
     kind: 'physical',
     name: row.name,
     description: row.description ?? '',
@@ -147,6 +167,64 @@ export const storeRepository: StoreRepository = {
   },
 };
 
+export const categoryRepository: CategoryRepository = {
+  async list(storeId) {
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .select(CATEGORY_SELECT)
+      .eq('store_id', storeId)
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+    fail(error);
+    return (data ?? []).map(toCategory);
+  },
+  async create(storeId, input) {
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .insert({
+        store_id: storeId,
+        name: input.name.trim(),
+        slug: categorySlug(input.name),
+        description: input.description.trim() || null,
+        sort_order: input.sortOrder,
+        is_active: input.isActive,
+      })
+      .select(CATEGORY_SELECT)
+      .single();
+    fail(error);
+    return toCategory(data);
+  },
+  async update(storeId, categoryId, input) {
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .update({
+        name: input.name.trim(),
+        slug: categorySlug(input.name),
+        description: input.description.trim() || null,
+        sort_order: input.sortOrder,
+        is_active: input.isActive,
+      })
+      .eq('store_id', storeId)
+      .eq('id', categoryId)
+      .select(CATEGORY_SELECT)
+      .maybeSingle();
+    fail(error);
+    if (!data) throw new Error('لم يتم العثور على التصنيف أو لا تملك صلاحية تعديله.');
+    return toCategory(data);
+  },
+  async delete(storeId, categoryId) {
+    const { data, error } = await getSupabase()
+      .from('categories')
+      .delete()
+      .eq('store_id', storeId)
+      .eq('id', categoryId)
+      .select('id')
+      .maybeSingle();
+    fail(error);
+    if (!data) throw new Error('لم يتم العثور على التصنيف أو لا تملك صلاحية حذفه.');
+  },
+};
+
 async function fetchProduct(storeId: string, productId: string): Promise<Product | null> {
   const { data, error } = await getSupabase()
     .from('products')
@@ -192,6 +270,15 @@ export const productRepository: ProductRepository = {
       });
     fail(createError);
     if (!created?.id) throw new Error('لم يتم إرجاع المنتج الذي تم إنشاؤه.');
+    const { data: categorized, error: categoryError } = await getSupabase()
+      .from('products')
+      .update({ category_id: input.categoryId ?? null })
+      .eq('store_id', storeId)
+      .eq('id', created.id)
+      .select('id')
+      .maybeSingle();
+    fail(categoryError);
+    if (!categorized) throw new Error('تم إنشاء المنتج لكن تعذر ربطه بالتصنيف المحدد.');
     const { data, error } = await getSupabase()
       .from('products')
       .select(PRODUCT_SELECT)
@@ -220,6 +307,15 @@ export const productRepository: ProductRepository = {
       p_images: input.images,
     });
     fail(error);
+    const { data: categorized, error: categoryError } = await getSupabase()
+      .from('products')
+      .update({ category_id: input.categoryId ?? null })
+      .eq('store_id', storeId)
+      .eq('id', productId)
+      .select('id')
+      .maybeSingle();
+    fail(categoryError);
+    if (!categorized) throw new Error('تم تحديث المنتج لكن تعذر حفظ تصنيفه.');
     const updated = await fetchProduct(storeId, productId);
     if (!updated) throw new Error('تم تحديث المنتج لكن تعذر إعادة تحميله.');
     return updated;
