@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../../shared/components/PageHeader';
-import type { Product, Store } from '../../../domain/types';
-import { productRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
+import type { Category, Product, Store } from '../../../domain/types';
+import { categoryRepository, productRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
+import { getSupabase } from '../../../services/supabase/client';
 
 function formatPrice(amountMinor: number, currency: string) {
   return new Intl.NumberFormat('ar-EG', { style: 'currency', currency }).format(amountMinor / 100);
@@ -17,6 +18,7 @@ export function ProductsPage() {
   const [stores, setStores] = useState<Store[]>([]);
   const [storeId, setStoreId] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actingProductId, setActingProductId] = useState('');
@@ -31,6 +33,16 @@ export function ProductsPage() {
   const [quantity, setQuantity] = useState('0');
   const [sku, setSku] = useState('');
   const [status, setStatus] = useState<Product['status']>('draft');
+  const [categoryId, setCategoryId] = useState('');
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
+
+  useEffect(() => {
+    const urls = selectedFiles.map((file) => URL.createObjectURL(file));
+    setNewImagePreviews(urls);
+    return () => urls.forEach((url) => URL.revokeObjectURL(url));
+  }, [selectedFiles]);
 
   const activeStore = useMemo(() => stores.find((store) => store.id === storeId) ?? null, [stores, storeId]);
 
@@ -47,8 +59,12 @@ export function ProductsPage() {
     setLoading(true);
     setError('');
     try {
-      const result = await productRepository.list(selectedStoreId, 1);
+      const [result, categoryItems] = await Promise.all([
+        productRepository.list(selectedStoreId, 1),
+        categoryRepository.list(selectedStoreId),
+      ]);
       setProducts(result.items);
+      setCategories(categoryItems.filter((category) => category.isActive));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل المنتجات.');
     } finally {
@@ -91,6 +107,9 @@ export function ProductsPage() {
     setQuantity('0');
     setSku('');
     setStatus('draft');
+    setCategoryId('');
+    setExistingImages([]);
+    setSelectedFiles([]);
   }
 
   function openCreateForm() {
@@ -113,6 +132,9 @@ export function ProductsPage() {
     setQuantity(String(variant.inventoryQuantity));
     setSku(variant.sku);
     setStatus(product.status);
+    setCategoryId(product.categoryId ?? '');
+    setExistingImages(product.images);
+    setSelectedFiles([]);
     setError('');
     setSuccess('');
     setShowForm(true);
@@ -136,15 +158,41 @@ export function ProductsPage() {
       return;
     }
 
+    if (existingImages.length + selectedFiles.length > 5) {
+      setError('يمكن إضافة خمس صور كحد أقصى للمنتج.');
+      return;
+    }
+    if (selectedFiles.some((file) => !['image/jpeg', 'image/png', 'image/webp', 'image/avif'].includes(file.type) || file.size > 10 * 1024 * 1024)) {
+      setError('الصور المدعومة: JPEG وPNG وWebP وAVIF، وبحد أقصى 10 ميجابايت للصورة.');
+      return;
+    }
+
     setSaving(true);
     setError('');
     setSuccess('');
+    const uploadedPaths: string[] = [];
     try {
+      const supabase = getSupabase();
+      const uploadedUrls: string[] = [];
+      for (const file of selectedFiles) {
+        const extension = ({ 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' } as Record<string, string>)[file.type];
+        const objectPath = `${activeStore.id}/products/${crypto.randomUUID()}.${extension}`;
+        const { error: uploadError } = await supabase.storage.from('store-assets').upload(objectPath, file, {
+          cacheControl: '3600',
+          contentType: file.type,
+          upsert: false,
+        });
+        if (uploadError) throw uploadError;
+        uploadedPaths.push(objectPath);
+        uploadedUrls.push(supabase.storage.from('store-assets').getPublicUrl(objectPath).data.publicUrl);
+      }
+
       const input = {
         kind: 'physical' as const,
         name: name.trim(),
         description: description.trim(),
-        images: editingProduct?.images ?? [],
+        images: [...existingImages, ...uploadedUrls],
+        categoryId: categoryId || null,
         currency: activeStore.currency,
         status,
         options: editingProduct?.options ?? [],
@@ -259,6 +307,14 @@ export function ProductsPage() {
               className="w-full rounded-xl border p-3" />
           </div>
           <div>
+            <label className="mb-2 block text-sm font-medium" htmlFor="product-category">التصنيف</label>
+            <select id="product-category" value={categoryId} onChange={(event) => setCategoryId(event.target.value)}
+              className="w-full rounded-xl border bg-white p-3">
+              <option value="">بدون تصنيف</option>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+          </div>
+          <div>
             <label className="mb-2 block text-sm font-medium" htmlFor="product-status">حالة المنتج</label>
             <select id="product-status" value={status} onChange={(event) => setStatus(event.target.value as Product['status'])}
               className="w-full rounded-xl border bg-white p-3">
@@ -266,6 +322,36 @@ export function ProductsPage() {
               <option value="active">نشط</option>
               {editingProduct?.status === 'archived' && <option value="archived">مؤرشف</option>}
             </select>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-medium">صور المنتج (حتى 5 صور)</label>
+            <div className="mb-3 flex flex-wrap gap-3">
+              {existingImages.map((image, index) => (
+                <div key={image} className="relative">
+                  <img src={image} alt={`صورة المنتج ${index + 1}`} className="h-24 w-24 rounded-xl border object-cover" />
+                  <button type="button" onClick={() => setExistingImages((current) => current.filter((url) => url !== image))}
+                    aria-label="إزالة الصورة" className="absolute -left-2 -top-2 rounded-full bg-red-600 px-2 py-1 text-xs text-white">×</button>
+                </div>
+              ))}
+              {newImagePreviews.map((image, index) => (
+                <div key={image} className="relative">
+                  <img src={image} alt={`معاينة الصورة الجديدة ${index + 1}`} className="h-24 w-24 rounded-xl border object-cover" />
+                  <button type="button" onClick={() => setSelectedFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}
+                    aria-label="إزالة الصورة الجديدة" className="absolute -left-2 -top-2 rounded-full bg-red-600 px-2 py-1 text-xs text-white">×</button>
+                </div>
+              ))}
+            </div>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" multiple
+              disabled={existingImages.length + selectedFiles.length >= 5}
+              onChange={(event) => {
+                const incoming = Array.from(event.target.files ?? []);
+                const remaining = Math.max(0, 5 - existingImages.length - selectedFiles.length);
+                setSelectedFiles((current) => [...current, ...incoming.slice(0, remaining)]);
+                if (incoming.length > remaining) setError('يمكن إضافة خمس صور كحد أقصى للمنتج.');
+                event.target.value = '';
+              }}
+              className="w-full rounded-xl border p-3 text-sm disabled:bg-slate-100" />
+            <p className="mt-1 text-xs text-slate-500">JPEG وPNG وWebP وAVIF، بحد أقصى 10 ميجابايت لكل صورة. يتم رفعها إلى مساحة ملفات متجرك.</p>
           </div>
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-medium" htmlFor="product-description">الوصف</label>
@@ -301,8 +387,12 @@ export function ProductsPage() {
                   {visibleProducts.map((product) => (
                     <tr key={product.id} className="border-t">
                       <td className="p-4">
-                        <b>{product.name}</b>
-                        <p className="mt-1 max-w-sm truncate text-xs text-slate-500">{product.description}</p>
+                        <div className="flex items-center gap-3">
+                          {product.images[0] ? <img src={product.images[0]} alt="" className="h-12 w-12 rounded-lg object-cover" /> : null}
+                          <div><b>{product.name}</b>
+                          <p className="mt-1 max-w-sm truncate text-xs text-slate-500">{product.description}</p>
+                          {product.categoryId && <p className="mt-1 text-xs text-slate-400">{categories.find((item) => item.id === product.categoryId)?.name ?? 'تصنيف'}</p>}</div>
+                        </div>
                         {product.variants[0]?.sku && <p className="mt-1 text-xs text-slate-400">SKU: {product.variants[0].sku}</p>}
                       </td>
                       <td className="p-4">{formatPrice(product.variants[0]?.priceMinor ?? 0, product.currency)}</td>
