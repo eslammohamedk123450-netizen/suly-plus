@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Tags, ShoppingCart, Users, Boxes, Palette, Settings, Store, Bell, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Tags, ShoppingCart, Users, Boxes, Palette, Settings, Store, ChartNoAxesCombined, Bell, LogOut } from 'lucide-react';
 import type { User } from '../../domain/types';
 import { authRepository } from '../../services/repositories/supabaseRepositories';
 
@@ -13,6 +13,7 @@ const links = [
   ['/dashboard/inventory', 'المخزون', Boxes],
   ['/dashboard/design', 'تصميم المتجر', Palette],
   ['/dashboard/settings', 'الإعدادات', Settings],
+  ['/dashboard/reports', 'التقارير المالية', ChartNoAxesCombined],
 ] as const;
 
 export function DashboardLayout() {
