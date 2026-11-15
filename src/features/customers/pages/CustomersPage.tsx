@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import type { Customer, Store } from '../../../domain/types';
-import { customerRepository, storeRepository } from '../../../services/repositories/httpRepositories';
+import { customerRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
 
 export function CustomersPage() {
   const [stores, setStores] = useState<Store[]>([]);
