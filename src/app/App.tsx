@@ -26,6 +26,7 @@ import { AdminBillingPage } from '../features/admin/pages/AdminBillingPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { TeamPage } from '../features/team/pages/TeamPage';
 import { SubscriptionPage } from '../features/subscriptions/pages/SubscriptionPage';
+import { CustomerOrdersPage } from '../features/customer-account/pages/CustomerOrdersPage';
 
 export default function App() {
   return <Routes>
@@ -38,6 +39,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/create-store" element={<CreateStorePage />} />
+      <Route path="/account/orders" element={<CustomerOrdersPage />} />
     </Route>
     <Route path="/dashboard" element={<DashboardLayout />}>
       <Route index element={<DashboardPage />} />
