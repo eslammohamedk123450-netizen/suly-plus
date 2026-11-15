@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.platform-admin-overview]
 verify_jwt = true
+
+[functions.platform-admin-manage-store]
+verify_jwt = true
