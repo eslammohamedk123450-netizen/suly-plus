@@ -446,3 +446,41 @@ export const checkoutRepository = {
   },
 };
 
+
+export interface DashboardRecentOrder {
+  id: string;
+  order_number: number;
+  customer_name: string;
+  total: number;
+  currency: string;
+  status: OrderStatus;
+  payment_status: string;
+  created_at: string;
+}
+
+export interface StoreDashboardSummary {
+  orders_count: number;
+  sales_collected: number;
+  products_count: number;
+  customers_count: number;
+  low_stock_count: number;
+  recent_orders: DashboardRecentOrder[];
+}
+
+export const dashboardRepository = {
+  async getSummary(storeId: string): Promise<StoreDashboardSummary> {
+    const { data, error } = await getSupabase().rpc('get_store_dashboard_summary', {
+      p_store_id: storeId,
+    });
+    fail(error);
+    if (!data) throw new Error('لا توجد بيانات متاحة لهذا المتجر أو لا تملك صلاحية الوصول إليه.');
+    return {
+      orders_count: Number(data.orders_count ?? 0),
+      sales_collected: Number(data.sales_collected ?? 0),
+      products_count: Number(data.products_count ?? 0),
+      customers_count: Number(data.customers_count ?? 0),
+      low_stock_count: Number(data.low_stock_count ?? 0),
+      recent_orders: Array.isArray(data.recent_orders) ? data.recent_orders : [],
+    };
+  },
+};
