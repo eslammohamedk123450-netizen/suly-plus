@@ -97,7 +97,7 @@ export function AdminPage() {
   return <main className="container-shell py-10">
     <header className="mb-8 flex flex-wrap items-center justify-between gap-4">
       <div><p className="text-sm font-semibold text-brand-600">Suly Plus</p><h1 className="mt-1 text-3xl font-bold">الإدارة المركزية</h1><p className="mt-2 text-sm text-slate-500">إشراف المنصة وإجراءات المتاجر مع سجل تدقيق.</p></div>
-      <Link to="/dashboard" className="rounded-xl border px-4 py-2 text-sm font-semibold">لوحة التاجر</Link>
+      <div className="flex gap-2"><Link to="/admin/billing" className="rounded-xl border px-4 py-2 text-sm font-semibold">الخطط والفوترة</Link><Link to="/dashboard" className="rounded-xl border px-4 py-2 text-sm font-semibold">لوحة التاجر</Link></div>
     </header>
     {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</div>}
     {notice && <div role="status" className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{notice}</div>}
