@@ -1,0 +1,1 @@
+import {PageHeader} from '../../../shared/components/PageHeader'; export function ProductsPage(){return <><PageHeader title="المنتجات" description="إدارة المنتجات المادية وخياراتها ومخزونها."/><div className="rounded-2xl border bg-white p-8 text-center"><b>لا توجد منتجات متصلة</b><p className="mt-2 text-sm text-slate-500">إدارة المنتجات ستعمل بعد ربط خدمة المنتجات.</p></div></>}
