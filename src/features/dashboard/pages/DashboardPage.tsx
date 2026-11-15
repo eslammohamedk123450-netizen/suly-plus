@@ -4,6 +4,34 @@ import { ShoppingBag, Package, Users, Wallet, AlertTriangle, ArrowLeft } from 'l
 import { PageHeader } from '../../../shared/components/PageHeader';
 import { storeRepository, dashboardRepository, type StoreDashboardSummary } from '../../../services/repositories/supabaseRepositories';
 import type { Store } from '../../../domain/types';
+import { subscriptionRepository, type StorePlanOverview } from '../../subscriptions/subscriptionRepository';
+
+const subscriptionStatusLabels: Record<string, string> = { trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد', cancelled: 'ملغي', suspended: 'موقوف' };
+
+function PlanUsageCard({ storeId }: { storeId: string }) {
+  const [overview, setOverview] = useState<StorePlanOverview | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    subscriptionRepository.getStorePlanOverview(storeId)
+      .then(value => { if (active) setOverview(value); })
+      .catch(cause => { if (active) setError(cause instanceof Error ? cause.message : 'تعذر تحميل الاشتراك.'); });
+    return () => { active = false; };
+  }, [storeId]);
+  if (error) return <div role="alert" className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{error}</div>;
+  if (!overview) return <div className="mt-5 rounded-2xl border bg-white p-5 text-sm text-slate-500">جارٍ تحميل حدود الاشتراك...</div>;
+  if (!overview.assigned) return <section className="mt-5 rounded-2xl border bg-white p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">خطة المتجر</h2><p className="mt-1 text-sm text-slate-500">لم يتم تعيين خطة اشتراك لهذا المتجر حتى الآن.</p></div><Link to="/pricing" className="rounded-xl border px-4 py-2 text-sm font-semibold">عرض الخطط</Link></div></section>;
+  const productPercent = overview.maxProducts === null ? 0 : overview.maxProducts === 0 ? 100 : Math.min(100, overview.productCount / overview.maxProducts * 100);
+  const limitText = (value: number | null) => value === null ? 'غير محدود' : value.toLocaleString('ar-EG');
+  return <section className="mt-5 rounded-2xl border bg-white p-5">
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold">الخطة الحالية: {overview.planName}</h2><p className="mt-1 text-sm text-slate-500">{overview.status ? subscriptionStatusLabels[overview.status] ?? overview.status : ''} · {overview.billingInterval === 'monthly' ? 'شهري' : overview.billingInterval === 'yearly' ? 'سنوي' : 'يدوي'}</p></div>{overview.currentPeriodEnd && <span className="text-xs text-slate-400">تنتهي {new Date(overview.currentPeriodEnd).toLocaleDateString('ar-EG')}</span>}</div>
+    <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div><div className="flex justify-between gap-2 text-sm"><span className="text-slate-500">المنتجات</span><b>{overview.productCount.toLocaleString('ar-EG')} / {limitText(overview.maxProducts)}</b></div>{overview.maxProducts !== null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-600" style={{ width: `${productPercent}%` }}/></div>}</div>
+      <div className="text-sm"><p className="text-slate-500">أعضاء الفريق</p><b>{limitText(overview.maxTeamMembers)}</b></div>
+      <div className="text-sm"><p className="text-slate-500">الطلبات الشهرية</p><b>{limitText(overview.maxMonthlyOrders)}</b></div>
+    </div>
+  </section>;
+}
 
 const statusLabels: Record<string, string> = {
   pending: 'قيد الانتظار', confirmed: 'تم التأكيد', processing: 'قيد التجهيز',
@@ -89,6 +117,7 @@ export function DashboardPage() {
             <p className="mt-1 text-xs text-slate-400">{hint}</p>
           </div>)}
         </div>
+        <PlanUsageCard storeId={storeId} />
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border bg-white p-5 lg:col-span-2">
             <div className="mb-4 flex items-center justify-between">
