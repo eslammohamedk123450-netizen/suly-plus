@@ -215,8 +215,30 @@ export function ProductsPage() {
         setSuccess('تم حفظ المنتج بنجاح.');
       }
 
+      uploadedPaths.length = 0;
+      if (editingProduct) {
+        const removedPaths = editingProduct.images
+          .filter((url) => !existingImages.includes(url))
+          .map((url) => {
+            try {
+              const path = decodeURIComponent(new URL(url).pathname.split('/storage/v1/object/public/store-assets/')[1] ?? '');
+              return path.startsWith(`${activeStore.id}/products/`) ? path : '';
+            } catch {
+              return '';
+            }
+          })
+          .filter(Boolean);
+        if (removedPaths.length) {
+          const { error: removeError } = await supabase.storage.from('store-assets').remove(removedPaths);
+          if (removeError) console.warn('تعذر حذف بعض الصور القديمة من Storage:', removeError.message);
+        }
+      }
       closeForm();
     } catch (err) {
+      if (uploadedPaths.length) {
+        const { error: cleanupError } = await getSupabase().storage.from('store-assets').remove(uploadedPaths);
+        if (cleanupError) console.warn('تعذر تنظيف الصور التي لم يتم ربطها بمنتج:', cleanupError.message);
+      }
       setError(err instanceof Error ? err.message : 'تعذر حفظ المنتج. تحقق من الاتصال والصلاحيات.');
     } finally {
       setSaving(false);
