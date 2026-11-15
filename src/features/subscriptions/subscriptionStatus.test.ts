@@ -64,6 +64,14 @@ describe('effective subscription status', () => {
     }, now)).toBe('upcoming');
   });
 
+  it('shows a disabled plan as inactive even when the billing period is valid', () => {
+    expect(getEffectiveSubscriptionStatus({
+      status: 'active', billingInterval: 'manual',
+      currentPeriodStart: '2026-11-01T00:00:00.000Z', currentPeriodEnd: null,
+      trialEnd: null, planActive: false,
+    }, now)).toBe('plan_inactive');
+  });
+
   it('preserves non-active lifecycle states', () => {
     expect(getEffectiveSubscriptionStatus({
       status: 'past_due',
