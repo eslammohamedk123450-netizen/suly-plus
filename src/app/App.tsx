@@ -16,6 +16,8 @@ import { InventoryPage } from '../features/inventory/pages/InventoryPage';
 import { StoreDesignPage } from '../features/store-design/pages/StoreDesignPage';
 import { SettingsPage } from '../features/settings/pages/SettingsPage';
 import { StorefrontPage } from '../features/storefront/pages/StorefrontPage';
+import { ProductDetailsPage } from '../features/storefront/pages/ProductDetailsPage';
+import { CartPage } from '../features/storefront/pages/CartPage';
 import { CheckoutPage } from '../features/storefront/pages/CheckoutPage';
 import { OrderTrackingPage } from '../features/storefront/pages/OrderTrackingPage';
 import { NotFoundPage } from '../shared/pages/NotFoundPage';
@@ -41,6 +43,8 @@ export default function App() {
       <Route path="settings" element={<SettingsPage />} />
     </Route>
     <Route path="/store/:storeSlug" element={<StorefrontPage />} />
+    <Route path="/store/:storeSlug/product/:productId" element={<ProductDetailsPage />} />
+    <Route path="/store/:storeSlug/cart" element={<CartPage />} />
     <Route path="/store/:storeSlug/checkout" element={<CheckoutPage />} />
     <Route path="/store/:storeSlug/order/:orderNumber" element={<OrderTrackingPage />} />
     <Route path="/404" element={<NotFoundPage />} />
