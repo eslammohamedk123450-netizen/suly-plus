@@ -85,6 +85,26 @@ Deno.serve(async (req: Request) => {
 
     const action = typeof body.action === "string" ? body.action : "";
     if (action === "invite") {
+      // Check the subscription before sending an invitation email.
+      const [{ data: subscription, error: subscriptionError }, { count: currentMembers, error: memberCountError }] = await Promise.all([
+        admin.from("store_subscriptions")
+          .select("status,subscription_plans(is_active,max_team_members)")
+          .eq("store_id", storeId).maybeSingle(),
+        admin.from("store_members").select("user_id", { count: "exact", head: true }).eq("store_id", storeId),
+      ]);
+      if (subscriptionError || memberCountError) return reply(503, { error: "تعذر التحقق من حدود خطة المتجر." });
+      if (subscription) {
+        const plan = Array.isArray(subscription.subscription_plans)
+          ? subscription.subscription_plans[0] : subscription.subscription_plans;
+        if (!plan?.is_active || !["trialing","active"].includes(subscription.status)) {
+          return reply(422, { error: "اشتراك المتجر غير نشط. لا يمكن إضافة أعضاء جدد قبل تجديده أو إعادة تفعيله." });
+        }
+        if (plan.max_team_members !== null && plan.max_team_members !== undefined
+            && (currentMembers ?? 0) >= Number(plan.max_team_members)) {
+          return reply(422, { error: "وصل المتجر إلى الحد الأقصى لأعضاء الفريق في خطته الحالية." });
+        }
+      }
+
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
       const role = typeof body.role === "string" ? body.role : "";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || !allowedRoles.has(role)) {
@@ -136,6 +156,8 @@ Deno.serve(async (req: Request) => {
           await admin.auth.admin.deleteUser(invitedUserId);
         }
         if (error.message.includes("already a store member")) return reply(409, { error: "هذا المستخدم عضو بالفعل في المتجر." });
+        if (error.message.includes("PLAN_LIMIT_TEAM_MEMBERS_REACHED")) return reply(422, { error: "وصل المتجر إلى الحد الأقصى لأعضاء الفريق في خطته الحالية." });
+        if (error.message.includes("SUBSCRIPTION_NOT_ACTIVE")) return reply(422, { error: "اشتراك المتجر غير نشط. لا يمكن إضافة أعضاء جدد." });
         return reply(400, { error: "تعذر حفظ دعوة الفريق." });
       }
       return reply(200, { ok: true, result: data, message: invitationStatus === "pending" ? "تم إرسال الدعوة بالبريد." : "تمت إضافة الحساب الموجود إلى المتجر." });
