@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PageHeader } from '../../../shared/components/PageHeader';
 import type { Product, Store } from '../../../domain/types';
-import { productRepository, storeRepository } from '../../../services/repositories/httpRepositories';
+import { productRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
 
 function formatPrice(amountMinor: number, currency: string) {
   return new Intl.NumberFormat('ar-EG', { style: 'currency', currency }).format(amountMinor / 100);
