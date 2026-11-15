@@ -22,12 +22,14 @@ import { CheckoutPage } from '../features/storefront/pages/CheckoutPage';
 import { OrderTrackingPage } from '../features/storefront/pages/OrderTrackingPage';
 import { NotFoundPage } from '../shared/pages/NotFoundPage';
 import { AdminPage } from '../features/admin/pages/AdminPage';
+import { AdminBillingPage } from '../features/admin/pages/AdminBillingPage';
 import { ReportsPage } from '../features/reports/pages/ReportsPage';
 import { TeamPage } from '../features/team/pages/TeamPage';
 
 export default function App() {
   return <Routes>
     <Route path="/admin" element={<AdminPage />} />
+    <Route path="/admin/billing" element={<AdminBillingPage />} />
     <Route element={<PublicLayout />}>
       <Route path="/" element={<HomePage />} />
       <Route path="/features" element={<FeaturesPage />} />
