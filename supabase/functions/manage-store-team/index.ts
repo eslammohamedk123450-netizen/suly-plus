@@ -86,13 +86,20 @@ Deno.serve(async (req: Request) => {
     const action = typeof body.action === "string" ? body.action : "";
     if (action === "invite") {
       // Check the subscription before sending an invitation email.
-      const [{ data: subscription, error: subscriptionError }, { count: currentMembers, error: memberCountError }] = await Promise.all([
+      const [
+        { data: subscription, error: subscriptionError },
+        { count: memberCount, error: memberCountError },
+        { count: pendingInviteCount, error: inviteCountError },
+      ] = await Promise.all([
         admin.from("store_subscriptions")
           .select("status,billing_interval,current_period_start,current_period_end,trial_end,subscription_plans(is_active,max_team_members)")
           .eq("store_id", storeId).maybeSingle(),
         admin.from("store_members").select("user_id", { count: "exact", head: true }).eq("store_id", storeId),
+        admin.from("store_team_invitations").select("id", { count: "exact", head: true })
+          .eq("store_id", storeId).eq("status", "pending").gt("expires_at", new Date().toISOString()),
       ]);
-      if (subscriptionError || memberCountError) return reply(503, { error: "تعذر التحقق من حدود خطة المتجر." });
+      if (subscriptionError || memberCountError || inviteCountError) return reply(503, { error: "تعذر التحقق من حدود خطة المتجر." });
+      const currentMembers = (memberCount ?? 0) + (pendingInviteCount ?? 0);
       if (subscription) {
         const plan = Array.isArray(subscription.subscription_plans)
           ? subscription.subscription_plans[0] : subscription.subscription_plans;
