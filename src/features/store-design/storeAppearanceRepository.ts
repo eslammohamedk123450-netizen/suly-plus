@@ -27,6 +27,7 @@ export const storeAppearanceRepository = {
     ]);
     raise(storeError);
     raise(settingsError);
+    if (!store) throw new Error('المتجر غير موجود أو لا تملك صلاحية الوصول إليه.');
     return {
       id: store.id,
       name: store.name ?? '',
