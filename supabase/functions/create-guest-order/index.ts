@@ -1,4 +1,3 @@
-import { isPaymobIntegrationId } from "../_shared/paymob.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,6 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json",
 };
+
+function isPaymobIntegrationId(value: string): boolean {
+  return /^\d+$/.test(value);
+}
 
 function response(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), { status, headers: corsHeaders });
