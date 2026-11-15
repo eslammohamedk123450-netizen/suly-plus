@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
         }
         normalizedItems.push({ product_id: line.product_id.toLowerCase(), quantity: Number(line.quantity) });
       }
-      const { data: allowed, error: rateError } = await admin.rpc("consume_checkout_rate_limit", {
+      const { data: allowed, error: rateError } = await admin.rpc("consume_checkout_quote_rate_limit", {
         p_ip_address: `checkout-quote:${clientIp(req)}`,
       });
       if (rateError) return response(503, { error: "تعذر التحقق من طلب التسعير. حاول مرة أخرى." });
