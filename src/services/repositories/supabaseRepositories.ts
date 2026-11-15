@@ -1,4 +1,4 @@
-import type { Customer, Order, Product, Store, User } from '../../domain/types';
+import type { Customer, Order, OrderStatus, OrderStatusHistory, Product, Store, User } from '../../domain/types';
 import type { AuthRepository, CustomerRepository, OrderRepository, ProductRepository, StoreRepository } from './contracts';
 import { getSupabase } from '../supabase/client';
 import { createProductSlug } from '../../features/products/productSlug';
@@ -53,19 +53,21 @@ function toProduct(row: any): Product {
 }
 
 function toOrder(row: any): Order {
-  const status: Order['status'] =
-    row.status === 'cancelled' || row.status === 'refunded' ? 'cancelled' :
-    row.payment_status === 'paid' ? 'paid' :
-    row.status === 'shipped' || row.status === 'delivered' ? 'fulfilled' : 'pending';
   return {
-    id: String(row.order_number ?? row.id),
+    id: row.id,
+    orderNumber: Number(row.order_number),
     storeId: row.store_id,
     customerId: row.customer_id ?? '',
-    status,
+    customerName: row.customer_name ?? '',
+    customerPhone: row.customer_phone ?? undefined,
+    status: row.status as OrderStatus,
+    paymentStatus: row.payment_status,
+    paymentMethod: row.payment_method,
+    shippingAddress: row.shipping_address ?? {},
     currency: row.currency,
     lines: (row.order_items ?? []).map((line: any) => ({
       productId: line.product_id ?? '',
-      variantId: '',
+      variantId: line.variant_id ?? '',
       name: line.product_name,
       quantity: line.quantity,
       unitPriceMinor: Math.round(Number(line.unit_price) * 100),
@@ -246,6 +248,34 @@ export const orderRepository: OrderRepository = {
       .range(from, from + 19);
     fail(error);
     return { items: (data ?? []).map(toOrder), total: count ?? 0, page, pageSize: 20 };
+  },
+
+  async updateStatus(storeId: string, orderId: string, status: OrderStatus, note = ''): Promise<void> {
+    const { error } = await getSupabase().rpc('update_order_fulfillment_status', {
+      p_store_id: storeId,
+      p_order_id: orderId,
+      p_new_status: status,
+      p_note: note.trim() || null,
+    });
+    fail(error);
+  },
+
+  async listStatusHistory(storeId: string, orderId: string): Promise<OrderStatusHistory[]> {
+    const { data, error } = await getSupabase()
+      .from('order_status_history')
+      .select('id, previous_status, new_status, note, created_at')
+      .eq('store_id', storeId)
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    fail(error);
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      previousStatus: row.previous_status,
+      newStatus: row.new_status,
+      note: row.note ?? undefined,
+      changedAt: row.created_at,
+    }));
   },
 };
 
