@@ -24,6 +24,26 @@ function validDate(value: unknown): string | null | undefined {
   return new Date(value).toISOString();
 }
 
+async function recordBillingAudit(
+  admin: any,
+  actorId: string,
+  action: string,
+  targetType: string,
+  targetId: string | null,
+  storeId: string | null,
+  details: Record<string, unknown>,
+): Promise<boolean> {
+  const { error } = await admin.from("platform_admin_billing_audit_log").insert({
+    actor_id: actorId,
+    action,
+    target_type: targetType,
+    target_id: targetId,
+    store_id: storeId,
+    details,
+  });
+  return !error;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers });
   if (req.method !== "GET" && req.method !== "POST") return reply(405, { error: "Method not allowed." });
@@ -54,14 +74,15 @@ Deno.serve(async (req: Request) => {
     const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
     if (req.method === "GET") {
-      const [plans, subscriptions, invoices, stores] = await Promise.all([
+      const [plans, subscriptions, invoices, stores, audit] = await Promise.all([
         admin.from("subscription_plans").select("*").order("monthly_price", { ascending: true }).order("name", { ascending: true }),
         admin.from("store_subscriptions").select("id,store_id,plan_id,status,billing_interval,current_period_start,current_period_end,trial_end,cancel_at_period_end,created_at,stores(name,slug),subscription_plans(name,code)").order("updated_at", { ascending: false }).limit(100),
         admin.from("subscription_invoices").select("id,invoice_number,store_id,subscription_id,amount,currency,status,period_start,period_end,due_at,paid_at,payment_reference,memo,created_at,stores(name,slug)").order("created_at", { ascending: false }).limit(100),
         admin.from("stores").select("id,name,slug,is_active").order("created_at", { ascending: false }).limit(200),
+        admin.from("platform_admin_billing_audit_log").select("id,actor_id,action,target_type,target_id,store_id,details,created_at,stores(name)").order("created_at", { ascending: false }).limit(100),
       ]);
-      if (plans.error || subscriptions.error || invoices.error || stores.error) return reply(503, { error: "تعذر تحميل بيانات الاشتراكات والفوترة." });
-      return reply(200, { ok: true, plans: plans.data ?? [], subscriptions: subscriptions.data ?? [], invoices: invoices.data ?? [], stores: stores.data ?? [] });
+      if (plans.error || subscriptions.error || invoices.error || stores.error || audit.error) return reply(503, { error: "تعذر تحميل بيانات الاشتراكات والفوترة." });
+      return reply(200, { ok: true, plans: plans.data ?? [], subscriptions: subscriptions.data ?? [], invoices: invoices.data ?? [], stores: stores.data ?? [], audit: audit.data ?? [] });
     }
 
     const action = typeof body.action === "string" ? body.action : "";
@@ -98,7 +119,11 @@ Deno.serve(async (req: Request) => {
         : await admin.from("subscription_plans").insert(payload).select("*").single();
       if (result.error) return reply(result.error.code === "23505" ? 409 : 400, { error: result.error.code === "23505" ? "رمز الخطة مستخدم بالفعل." : "تعذر حفظ الخطة." });
       if (!result.data) return reply(404, { error: "الخطة غير موجودة." });
-      return reply(200, { ok: true, plan: result.data });
+      const auditRecorded = await recordBillingAudit(admin, authData.user.id, id ? "plan_updated" : "plan_created", "plan", result.data.id, null, {
+        code: result.data.code, name: result.data.name,
+        monthly_price: result.data.monthly_price, yearly_price: result.data.yearly_price,
+      });
+      return reply(200, { ok: true, plan: result.data, audit_recorded: auditRecorded });
     }
 
     if (action === "set_plan_active") {
@@ -109,7 +134,8 @@ Deno.serve(async (req: Request) => {
         .eq("id", id).select("id,is_active").maybeSingle();
       if (error) return reply(400, { error: "تعذر تحديث حالة الخطة." });
       if (!data) return reply(404, { error: "الخطة غير موجودة." });
-      return reply(200, { ok: true, plan: data });
+      const auditRecorded = await recordBillingAudit(admin, authData.user.id, body.is_active ? "plan_activated" : "plan_deactivated", "plan", data.id, null, { is_active: data.is_active });
+      return reply(200, { ok: true, plan: data, audit_recorded: auditRecorded });
     }
 
     if (action === "assign_subscription") {
@@ -143,7 +169,10 @@ Deno.serve(async (req: Request) => {
         updated_at: new Date().toISOString(),
       }, { onConflict: "store_id" }).select("id,store_id,plan_id,status,billing_interval,current_period_start,current_period_end").single();
       if (error) return reply(400, { error: "تعذر حفظ الاشتراك." });
-      return reply(200, { ok: true, subscription: data });
+      const auditRecorded = await recordBillingAudit(admin, authData.user.id, "subscription_assigned", "subscription", data.id, storeId, {
+        plan_id: planId, status, billing_interval: interval, current_period_end: data.current_period_end,
+      });
+      return reply(200, { ok: true, subscription: data, audit_recorded: auditRecorded });
     }
 
     if (action === "create_invoice") {
@@ -169,7 +198,10 @@ Deno.serve(async (req: Request) => {
         memo: memo || null,
       }).select("id,invoice_number,store_id,amount,currency,status,due_at").single();
       if (error) return reply(400, { error: "تعذر إنشاء الفاتورة." });
-      return reply(200, { ok: true, invoice: data });
+      const auditRecorded = await recordBillingAudit(admin, authData.user.id, "invoice_created", "invoice", data.id, storeId, {
+        invoice_number: data.invoice_number, amount: data.amount, currency: data.currency,
+      });
+      return reply(200, { ok: true, invoice: data, audit_recorded: auditRecorded });
     }
 
     if (action === "mark_invoice_paid") {
@@ -179,10 +211,13 @@ Deno.serve(async (req: Request) => {
       const { data, error } = await admin.from("subscription_invoices")
         .update({ status: "paid", paid_at: new Date().toISOString(), payment_reference: reference || null })
         .eq("id", invoiceId).in("status", ["open","draft"])
-        .select("id,invoice_number,status,paid_at,payment_reference").maybeSingle();
+        .select("id,invoice_number,store_id,status,paid_at,payment_reference").maybeSingle();
       if (error) return reply(400, { error: "تعذر تحديث الفاتورة." });
       if (!data) return reply(409, { error: "الفاتورة غير موجودة أو ليست مفتوحة." });
-      return reply(200, { ok: true, invoice: data });
+      const auditRecorded = await recordBillingAudit(admin, authData.user.id, "invoice_marked_paid", "invoice", data.id, data.store_id, {
+        invoice_number: data.invoice_number, payment_reference: data.payment_reference,
+      });
+      return reply(200, { ok: true, invoice: data, audit_recorded: auditRecorded });
     }
 
     if (action === "update_subscription_status") {
@@ -194,7 +229,8 @@ Deno.serve(async (req: Request) => {
         .eq("id", id).select("id,status,store_id").maybeSingle();
       if (error) return reply(400, { error: "تعذر تحديث حالة الاشتراك." });
       if (!data) return reply(404, { error: "الاشتراك غير موجود." });
-      return reply(200, { ok: true, subscription: data });
+      const auditRecorded = await recordBillingAudit(admin, authData.user.id, "subscription_status_changed", "subscription", data.id, data.store_id, { status: data.status });
+      return reply(200, { ok: true, subscription: data, audit_recorded: auditRecorded });
     }
 
     return reply(400, { error: "Unknown billing action." });
