@@ -40,6 +40,7 @@ function messageFor(error: unknown, fallback: string): Error {
   if (status === 403) return new Error('إدارة الفريق متاحة لمالك المتجر فقط.');
   if (status === 401) return new Error('انتهت جلسة الدخول. سجّل الدخول مرة أخرى.');
   if (status === 422) return new Error('اشتراك المتجر غير نشط أو تم الوصول إلى الحد الأقصى لأعضاء الفريق في الخطة الحالية.');
+  if (status === 429) return new Error('وصل المتجر إلى الحد اليومي للدعوات. حاول مرة أخرى بعد مرور 24 ساعة.');
   if (status === 409) return new Error('الحساب موجود بالفعل في المتجر، أو يحتاج إلى تأكيد بريده الإلكتروني أولًا.');
   if (status === 502 || status === 503) return new Error('تعذر إكمال الدعوة أو تحميل بيانات الفريق. تحقق من إعدادات البريد والاتصال.');
   return new Error(fallback);
