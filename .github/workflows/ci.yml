@@ -47,3 +47,11 @@ jobs:
 
       - name: Create production build
         run: npm run build
+
+      - name: Build production Docker image
+        run: |
+          docker build \
+            --build-arg VITE_SUPABASE_URL=https://example.supabase.co \
+            --build-arg VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_placeholder \
+            --tag suly-plus-web:ci .
+
