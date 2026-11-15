@@ -1,4 +1,4 @@
-const corsHeaders = {
+import { isPaymobIntegrationId } from "../_shared/paymob.ts";
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-store-slug",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
@@ -21,7 +21,7 @@ Deno.serve((req: Request) => {
     && Deno.env.get("PAYMOB_PUBLIC_KEY")
     && Deno.env.get("PAYMOB_HMAC_SECRET")
     && publicOrigin.startsWith("https://")
-    && /^\\d+$/.test(integrationId)
+    && isPaymobIntegrationId(integrationId)
   );
 
   return new Response(JSON.stringify({
