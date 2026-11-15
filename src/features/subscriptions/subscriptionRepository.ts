@@ -4,7 +4,9 @@ export interface StorePlanOverview {
   assigned: boolean;
   status: string | null;
   billingInterval: string | null;
+  currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
+  trialEnd: string | null;
   planName: string | null;
   currency: string | null;
   monthlyPrice: number | null;
@@ -20,7 +22,7 @@ export const subscriptionRepository = {
     const supabase = getSupabase();
     const [{ data: subscription, error: subscriptionError }, { count, error: productError }] = await Promise.all([
       supabase.from('store_subscriptions')
-        .select('status,billing_interval,current_period_end,subscription_plans(name,currency,monthly_price,yearly_price,max_products,max_team_members,max_monthly_orders)')
+        .select('status,billing_interval,current_period_start,current_period_end,trial_end,subscription_plans(name,currency,monthly_price,yearly_price,max_products,max_team_members,max_monthly_orders)')
         .eq('store_id', storeId).maybeSingle(),
       supabase.from('products').select('id', { count: 'exact', head: true })
         .eq('store_id', storeId).neq('status', 'archived'),
@@ -33,7 +35,9 @@ export const subscriptionRepository = {
       assigned: Boolean(subscription),
       status: subscription?.status ?? null,
       billingInterval: subscription?.billing_interval ?? null,
+      currentPeriodStart: subscription?.current_period_start ?? null,
       currentPeriodEnd: subscription?.current_period_end ?? null,
+      trialEnd: subscription?.trial_end ?? null,
       planName: plan?.name ?? null,
       currency: plan?.currency ?? null,
       monthlyPrice: plan ? Number(plan.monthly_price) : null,
