@@ -1,6 +1,6 @@
 # Backend and Supabase contracts
 
-Suly Plus currently uses Supabase directly through the browser-safe publishable key and server-side Edge Functions. The old generic HTTP repository adapter remains only as an unused compatibility boundary.
+Suly Plus uses Supabase directly through the browser-safe publishable key and server-side Edge Functions.
 
 ## Authentication
 - Supabase Auth manages registration, sessions, sign-in, and sign-out.
@@ -29,22 +29,31 @@ The checkout form invokes `create-guest-order`. That Edge Function:
 3. calls a server-only database function;
 4. lets PostgreSQL load current active product prices and lock inventory rows;
 5. creates/updates the customer and inserts the order and order items;
-6. decrements tracked stock and writes inventory movements;
+6. reserves tracked stock and records inventory movements;
 7. returns an order number and random tracking token.
 
-The database function is executable only by the server role. It ignores prices from the browser because the browser never submits them as authoritative values.
+Prices are always loaded from PostgreSQL. Values sent by the browser are identifiers and quantities only.
 
 ## Order tracking
 - `get-order-status` requires the order number and its random public token.
-- The response contains order status, totals, and item summaries only.
+- The response contains order status, payment status, totals, and item summaries only.
 - Customer email, phone, and delivery address are not returned.
-- The lookup RPC is executable only by the server role.
 
-## Payments and fulfillment
-- Cash on delivery is currently the only enabled payment method.
-- `payment_transactions` stores the payment ledger for future provider integration.
-- Online payment must be initiated and confirmed server-side. A provider webhook signature must be verified before changing `payment_status`.
-- Shipping fees, tax, discounts, carrier tracking, and notifications are not enabled yet.
+## Paymob
+- `get-checkout-methods` tells the storefront whether Paymob secrets have been configured.
+- `create-guest-order` creates a pending Paymob order, creates a Paymob Intention server-side, and returns only the hosted checkout URL and safe order summary.
+- The secret key is sent only in the server-side `Authorization: Token` header when calling Paymob's Egypt Intention API.
+- `paymob-webhook` verifies the Transaction Processed Callback HMAC-SHA512 using the documented field order, rejects malformed signatures, verifies the configured Integration ID, validates order reference, amount and currency, and updates payment state through a service-role-only database function.
+- Duplicate transaction callbacks are idempotent. Failed transactions cancel pending orders and restore tracked inventory.
+- The browser redirect is a user-experience route only; the verified Webhook is the payment source of truth.
+
+## Current payment account model
+Current Paymob environment variables configure one platform-level merchant account for the Suly Plus project. This is suitable only for controlled development/testing under that merchant account. It is not per-store merchant onboarding or marketplace settlement. Before enabling Paymob for independent sellers, implement a Paymob-approved submerchant/marketplace settlement model or encrypted per-store merchant credentials with independent ownership verification.
+
+## Payment limitations
+- Cash on delivery remains available.
+- Payment methods beyond the configured Paymob Integration ID are not assumed to work. Validate HMAC field shapes for each merchant's enabled payment method before launch.
+- Shipping fees, taxes, discounts, carrier tracking, refunds, and payouts are not enabled.
 
 ## Local configuration
-Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` belong in `.env.local`. Never place service-role or secret keys in a Vite environment variable.
+Only `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` belong in `.env.local`. Never place service-role, Paymob secret, or HMAC keys in a Vite environment variable.
