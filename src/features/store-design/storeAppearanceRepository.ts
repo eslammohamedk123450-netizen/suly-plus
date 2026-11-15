@@ -79,19 +79,15 @@ export const storeAppearanceRepository = {
       try { parsed = new URL(logoUrl); } catch { throw new Error('رابط الشعار غير صالح.'); }
       if (parsed.protocol !== 'https:') throw new Error('يجب أن يبدأ رابط الشعار بـ HTTPS.');
     }
-    const supabase = getSupabase();
-    const { data: updated, error: storeError } = await supabase.from('stores')
-      .update({ name, description: description || null, logo_url: logoUrl || null, updated_at: new Date().toISOString() })
-      .eq('id', storeId).select('id').maybeSingle();
-    raise(storeError);
-    if (!updated) throw new Error('لم يتم حفظ بيانات المتجر. تحقق من صلاحياتك.');
-    const { error: settingsError } = await supabase.from('store_settings').upsert({
-      store_id: storeId,
-      announcement: input.announcement.trim() || null,
-      support_email: input.supportEmail.trim() || null,
-      support_phone: input.supportPhone.trim() || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: 'store_id' });
-    raise(settingsError);
+    const { error } = await getSupabase().rpc('update_store_appearance', {
+      p_store_id: storeId,
+      p_name: name,
+      p_description: description || null,
+      p_logo_url: logoUrl || null,
+      p_announcement: input.announcement.trim() || null,
+      p_support_email: input.supportEmail.trim() || null,
+      p_support_phone: input.supportPhone.trim() || null,
+    });
+    raise(error);
   },
 };
