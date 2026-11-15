@@ -1,9 +1,12 @@
-import { isPaymobIntegrationId } from "../_shared/paymob.ts";
-  "Access-Control-Allow-Origin": "*",
+const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-store-slug",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Content-Type": "application/json",
 };
+
+function isPaymobIntegrationId(value: string): boolean {
+  return /^\d+$/.test(value);
+}
 
 Deno.serve((req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
