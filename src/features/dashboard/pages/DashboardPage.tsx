@@ -6,7 +6,7 @@ import { storeRepository, dashboardRepository, type StoreDashboardSummary } from
 import type { Store } from '../../../domain/types';
 import { subscriptionRepository, type StorePlanOverview } from '../../subscriptions/subscriptionRepository';
 
-const subscriptionStatusLabels: Record<string, string> = { trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد', cancelled: 'ملغي', suspended: 'موقوف' };
+const subscriptionStatusLabels: Record<string, string> = { trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد', cancelled: 'ملغي', suspended: 'موقوف', expired: 'منتهي', upcoming: 'لم يبدأ بعد' };
 
 function PlanUsageCard({ storeId }: { storeId: string }) {
   const [overview, setOverview] = useState<StorePlanOverview | null>(null);
@@ -24,7 +24,18 @@ function PlanUsageCard({ storeId }: { storeId: string }) {
   const productPercent = overview.maxProducts === null ? 0 : overview.maxProducts === 0 ? 100 : Math.min(100, overview.productCount / overview.maxProducts * 100);
   const limitText = (value: number | null) => value === null ? 'غير محدود' : value.toLocaleString('ar-EG');
   return <section className="mt-5 rounded-2xl border bg-white p-5">
-    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold">الخطة الحالية: {overview.planName}</h2><p className="mt-1 text-sm text-slate-500">{overview.status ? subscriptionStatusLabels[overview.status] ?? overview.status : ''} · {overview.billingInterval === 'monthly' ? 'شهري' : overview.billingInterval === 'yearly' ? 'سنوي' : 'يدوي'}</p></div>{overview.currentPeriodEnd && <span className="text-xs text-slate-400">تنتهي {new Date(overview.currentPeriodEnd).toLocaleDateString('ar-EG')}</span>}</div>
+    <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-bold">الخطة الحالية: {overview.planName}</h2><p className="mt-1 text-sm text-slate-500">{(() => {
+      const now = Date.now();
+      const start = overview.currentPeriodStart ? Date.parse(overview.currentPeriodStart) : null;
+      const end = overview.currentPeriodEnd ? Date.parse(overview.currentPeriodEnd) : null;
+      const trial = overview.trialEnd ? Date.parse(overview.trialEnd) : null;
+      const status = start !== null && start > now ? 'upcoming'
+        : end !== null && end <= now ? 'expired'
+        : overview.status === 'trialing' && (trial === null || trial <= now) ? 'expired'
+        : overview.status === 'active' && ['monthly', 'yearly'].includes(overview.billingInterval ?? '') && end === null ? 'expired'
+        : overview.status ?? '';
+      return subscriptionStatusLabels[status] ?? status;
+    })()} · {overview.billingInterval === 'monthly' ? 'شهري' : overview.billingInterval === 'yearly' ? 'سنوي' : 'يدوي'}</p></div>{overview.currentPeriodEnd && <span className="text-xs text-slate-400">تنتهي {new Date(overview.currentPeriodEnd).toLocaleDateString('ar-EG')}</span>}</div>
     <div className="mt-5 grid gap-4 md:grid-cols-3">
       <div><div className="flex justify-between gap-2 text-sm"><span className="text-slate-500">المنتجات</span><b>{overview.productCount.toLocaleString('ar-EG')} / {limitText(overview.maxProducts)}</b></div>{overview.maxProducts !== null && <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-600" style={{ width: `${productPercent}%` }}/></div>}</div>
       <div className="text-sm"><p className="text-slate-500">أعضاء الفريق</p><b>{limitText(overview.maxTeamMembers)}</b></div>
