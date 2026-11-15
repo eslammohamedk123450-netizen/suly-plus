@@ -73,3 +73,13 @@
 مشروع Supabase: `tihbrxbymkljhuyfoaio` — المنطقة `eu-west-1`.
 
 - لوحة تحكم مباشرة لكل متجر تعرض المبيعات المحصلة من المدفوعات المؤكدة، وعدد الطلبات والمنتجات والعملاء، وتنبيه المخزون المنخفض، وآخر خمسة طلبات. يتم تجميع البيانات عبر دالة SQL بصلاحيات المستدعي (SECURITY INVOKER) وتخضع لسياسات RLS.
+
+
+## Store checkout pricing and coupons
+
+- Each store can configure its shipping fee, a free-shipping subtotal threshold, and a tax percentage in Dashboard → Settings. All values are expressed in the store currency; defaults are zero and no jurisdiction-specific tax rate is assumed.
+- Store managers can create percentage or fixed-value coupons, configure minimum subtotal, optional usage caps and start/expiry times, deactivate or delete coupons.
+- The storefront requests a checkout quote from the server. Product prices, availability, coupon eligibility, discount, shipping, tax and total are recomputed from database records.
+- The order-creation transaction recalculates the amounts again, locks the coupon row when applicable, increments usage atomically, and updates the payment ledger amount. Client-supplied totals are never accepted.
+- Order tracking and the merchant order view display the persisted price breakdown.
+- Paymob receives the server-computed final amount and a single summary line item covering products, shipping, tax and discount. Live Paymob settlement and callback tests are still required before production activation.
