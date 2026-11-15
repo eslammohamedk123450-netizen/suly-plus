@@ -1,0 +1,1 @@
+import {Link} from 'react-router-dom'; export function NotFoundPage(){return <div className="container-shell flex min-h-[60vh] flex-col items-center justify-center text-center"><p className="text-6xl font-bold text-brand-600">404</p><h1 className="mt-4 text-2xl font-bold">الصفحة غير موجودة</h1><Link to="/" className="btn-primary mt-6">العودة للرئيسية</Link></div>}
