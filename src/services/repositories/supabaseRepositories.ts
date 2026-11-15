@@ -273,6 +273,7 @@ export interface InventoryMovement {
   quantity_delta: number;
   reason: string;
   created_at: string;
+  product_name: string | null;
 }
 
 export const inventoryRepository = {
@@ -284,7 +285,20 @@ export const inventoryRepository = {
       .order('created_at', { ascending: false })
       .limit(Math.max(1, Math.min(limit, 100)));
     fail(error);
-    return (data ?? []) as InventoryMovement[];
+    const movements = (data ?? []) as Array<Omit<InventoryMovement, 'product_name'>>;
+    const productIds = [...new Set(movements.map((movement) => movement.product_id))];
+    if (!productIds.length) return [];
+    const { data: productRows, error: productError } = await getSupabase()
+      .from('products')
+      .select('id, name')
+      .eq('store_id', storeId)
+      .in('id', productIds);
+    fail(productError);
+    const productNames = new Map((productRows ?? []).map((product: { id: string; name: string }) => [product.id, product.name]));
+    return movements.map((movement) => ({
+      ...movement,
+      product_name: productNames.get(movement.product_id) ?? null,
+    }));
   },
 
   async adjustStock(storeId: string, productId: string, variantId: string, quantityDelta: number): Promise<void> {
