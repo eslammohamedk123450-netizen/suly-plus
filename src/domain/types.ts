@@ -34,6 +34,11 @@ export interface Order {
   currency: CurrencyCode;
   lines: OrderLine[];
   totalMinor: number;
+  subtotalMinor?: number;
+  discountMinor?: number;
+  shippingMinor?: number;
+  taxMinor?: number;
+  couponCode?: string | null;
   createdAt: string;
 }
 export interface OrderStatusHistory {
