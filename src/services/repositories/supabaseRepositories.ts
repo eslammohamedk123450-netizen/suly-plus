@@ -646,3 +646,110 @@ export const dashboardRepository = {
     };
   },
 };
+
+
+export const checkoutAdminRepository = {
+  async getPricingSettings(storeId: string): Promise<CheckoutPricingSettings> {
+    const { data, error } = await getSupabase()
+      .from('store_settings')
+      .select('settings')
+      .eq('store_id', storeId)
+      .maybeSingle();
+    fail(error);
+    const pricing = data?.settings?.checkout_pricing ?? {};
+    return {
+      shipping_fee: Number(pricing.shipping_fee ?? 0),
+      free_shipping_threshold: Number(pricing.free_shipping_threshold ?? 0),
+      tax_rate: Number(pricing.tax_rate ?? 0),
+    };
+  },
+
+  async savePricingSettings(storeId: string, pricing: CheckoutPricingSettings): Promise<void> {
+    if (![pricing.shipping_fee, pricing.free_shipping_threshold, pricing.tax_rate].every(Number.isFinite)
+      || pricing.shipping_fee < 0 || pricing.free_shipping_threshold < 0
+      || pricing.tax_rate < 0 || pricing.tax_rate > 100) {
+      throw new Error('تحقق من قيم الشحن والضريبة.');
+    }
+    const { data: existing, error: readError } = await getSupabase()
+      .from('store_settings')
+      .select('settings')
+      .eq('store_id', storeId)
+      .maybeSingle();
+    fail(readError);
+    const settings = {
+      ...(existing?.settings ?? {}),
+      checkout_pricing: {
+        shipping_fee: Math.round(pricing.shipping_fee * 100) / 100,
+        free_shipping_threshold: Math.round(pricing.free_shipping_threshold * 100) / 100,
+        tax_rate: Math.round(pricing.tax_rate * 10000) / 10000,
+      },
+    };
+    const { error } = await getSupabase()
+      .from('store_settings')
+      .upsert({ store_id: storeId, settings, updated_at: new Date().toISOString() }, { onConflict: 'store_id' });
+    fail(error);
+  },
+
+  async listCoupons(storeId: string): Promise<StoreCoupon[]> {
+    const { data, error } = await getSupabase()
+      .from('store_coupons')
+      .select('id, store_id, code, discount_type, discount_value, minimum_subtotal, max_uses, used_count, starts_at, expires_at, is_active, created_at')
+      .eq('store_id', storeId)
+      .order('created_at', { ascending: false });
+    fail(error);
+    return (data ?? []).map((row: any) => ({
+      ...row,
+      discount_value: Number(row.discount_value),
+      minimum_subtotal: Number(row.minimum_subtotal),
+      max_uses: row.max_uses === null ? null : Number(row.max_uses),
+      used_count: Number(row.used_count),
+    }));
+  },
+
+  async createCoupon(storeId: string, input: {
+    code: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    minimum_subtotal: number;
+    max_uses: number | null;
+    starts_at: string | null;
+    expires_at: string | null;
+  }): Promise<void> {
+    const code = input.code.trim().toUpperCase();
+    if (!/^[A-Z0-9_-]{3,40}$/.test(code)) throw new Error('الكود يجب أن يحتوي على 3 إلى 40 حرفًا أو رقمًا.');
+    if (!Number.isFinite(input.discount_value) || input.discount_value <= 0
+      || (input.discount_type === 'percentage' && input.discount_value > 100)) {
+      throw new Error('قيمة الخصم غير صالحة.');
+    }
+    if (!Number.isFinite(input.minimum_subtotal) || input.minimum_subtotal < 0) {
+      throw new Error('الحد الأدنى للطلب غير صالح.');
+    }
+    const { error } = await getSupabase().from('store_coupons').insert({
+      store_id: storeId,
+      code,
+      discount_type: input.discount_type,
+      discount_value: input.discount_value,
+      minimum_subtotal: input.minimum_subtotal,
+      max_uses: input.max_uses,
+      starts_at: input.starts_at,
+      expires_at: input.expires_at,
+    });
+    if (error?.code === '23505') throw new Error('يوجد كوبون بنفس الكود داخل هذا المتجر.');
+    fail(error);
+  },
+
+  async setCouponActive(storeId: string, couponId: string, active: boolean): Promise<void> {
+    const { data, error } = await getSupabase().from('store_coupons')
+      .update({ is_active: active, updated_at: new Date().toISOString() })
+      .eq('store_id', storeId).eq('id', couponId).select('id').maybeSingle();
+    fail(error);
+    if (!data) throw new Error('لم يتم العثور على الكوبون أو لا تملك صلاحية تعديله.');
+  },
+
+  async deleteCoupon(storeId: string, couponId: string): Promise<void> {
+    const { data, error } = await getSupabase().from('store_coupons')
+      .delete().eq('store_id', storeId).eq('id', couponId).select('id').maybeSingle();
+    fail(error);
+    if (!data) throw new Error('لم يتم العثور على الكوبون أو لا تملك صلاحية حذفه.');
+  },
+};
