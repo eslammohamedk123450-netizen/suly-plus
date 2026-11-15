@@ -131,3 +131,23 @@
 - يتم تحديد البريد من جلسة Supabase Auth المؤكدة؛ لا يقبل endpoint بريدًا يرسله العميل بنفسه.
 - يعرض سجل الطلبات المنتجات والإجماليات والحالات، ولا يعرض عناوين الشحن أو أرقام الهواتف أو رموز التتبع العامة.
 - استخدم البريد نفسه عند الشراء والتسجيل حتى يتم ربط الطلبات بحساب العميل.
+
+## تشغيل حاوية Docker
+
+أضفت بناء إنتاج متعدد المراحل: Node يبني ملفات Vite، ثم NGINX غير مميّز يخدم الملفات الثابتة على المنفذ 8080. إعداد NGINX يشمل مسارات React Router وترويسات حماية، بينما Compose يشغّل الحاوية read-only مع إسقاط capabilities وربط المنفذ على localhost فقط.
+
+على خادم Linux مع Docker Compose:
+
+```bash
+cp .env.example .env
+# راجع VITE_SUPABASE_URL و VITE_SUPABASE_PUBLISHABLE_KEY داخل .env
+docker compose up --build -d
+docker compose ps
+docker compose logs -f suly-plus-web
+```
+
+اربط Reverse Proxy يدعم HTTPS بالنقطة `127.0.0.1:8080`، واضبط DNS وTLS قبل فتح الموقع للعامة. المنفذ غير منشور على كل واجهات الخادم. لا تضع أي Service Role Key أو مفاتيح Paymob في ملف `.env`؛ إعدادات الدفع السرية تبقى داخل Supabase Edge Function Secrets. ملف `.dockerignore` يمنع نسخ ملفات البيئة إلى صورة Docker.
+
+صورة NGINX المستخدمة هي [NGINX Unprivileged الرسمية](https://hub.docker.com/r/nginxinc/nginx-unprivileged)، التي تعمل كمستخدم غير root وتستخدم المنفذ 8080 افتراضيًا. راجع [تفاصيل الصورة وملاحظات التشغيل](https://github.com/nginx/docker-nginx-unprivileged).
+
+> Dockerfile وCompose أصبحا موجودين ويُختبران في CI؛ لم يتم نشر الحاوية على خادم إنتاج فعلي أو ربط نطاق حتى الآن.
