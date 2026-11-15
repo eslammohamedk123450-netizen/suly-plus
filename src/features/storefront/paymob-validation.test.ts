@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isPaymobIntegrationId } from '../../../supabase/functions/_shared/paymob.ts';
+import { isPaymobIntegrationId } from './paymob-validation';
 
 describe('Paymob integration ID validation', () => {
-  it('accepts a numeric integration ID', () => {
+  it('accepts numeric integration IDs', () => {
     expect(isPaymobIntegrationId('123456')).toBe(true);
     expect(isPaymobIntegrationId('00123')).toBe(true);
   });
