@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.paymob-webhook]
 verify_jwt = false
+
+[functions.get-public-store-info]
+verify_jwt = false
