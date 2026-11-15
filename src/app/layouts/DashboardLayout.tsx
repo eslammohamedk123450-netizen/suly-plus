@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingCart, Users, Boxes, Palette, Settings, Store, Bell, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, Tags, ShoppingCart, Users, Boxes, Palette, Settings, Store, Bell, LogOut } from 'lucide-react';
 import type { User } from '../../domain/types';
 import { authRepository } from '../../services/repositories/supabaseRepositories';
 
 const links = [
   ['/dashboard', 'نظرة عامة', LayoutDashboard],
   ['/dashboard/products', 'المنتجات', Package],
+  ['/dashboard/categories', 'التصنيفات', Tags],
   ['/dashboard/orders', 'الطلبات', ShoppingCart],
   ['/dashboard/customers', 'العملاء', Users],
   ['/dashboard/inventory', 'المخزون', Boxes],
