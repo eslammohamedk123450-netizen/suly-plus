@@ -115,22 +115,16 @@ export const storeRepository: StoreRepository = {
     return (data ?? []).map((row: any) => toStore(row.stores));
   },
   async create(input) {
-    const supabase = getSupabase();
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    fail(authError);
-    if (!authData.user) throw new Error('سجّل الدخول أولًا لإنشاء متجر.');
     const slug = input.slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const { data: store, error } = await supabase
-      .from('stores')
-      .insert({ created_by: authData.user.id, name: input.name.trim(), slug, currency: input.currency })
-      .select('id, created_by, name, slug, currency')
+    const { data, error } = await getSupabase()
+      .rpc('create_store', {
+        store_name: input.name.trim(),
+        store_slug: slug,
+        store_currency: input.currency,
+      })
       .single();
     fail(error);
-    const { error: memberError } = await supabase
-      .from('store_members')
-      .insert({ store_id: store.id, user_id: authData.user.id, role: 'owner' });
-    fail(memberError);
-    return toStore(store);
+    return toStore(data);
   },
   async getBySlug(slug) {
     const { data, error } = await getSupabase()
