@@ -124,7 +124,9 @@ Deno.serve(async (req: Request) => {
       if (!uuidPattern.test(storeId) || !uuidPattern.test(planId) || !subscriptionStatuses.has(status)
           || !["monthly","yearly","manual"].includes(interval)
           || start === undefined || end === undefined || trialEnd === undefined || notes.length > 1000
-          || (start && end && Date.parse(end) <= Date.parse(start))) {
+          || (start && end && Date.parse(end) <= Date.parse(start))
+          || (status === "trialing" && !trialEnd)
+          || (["monthly","yearly"].includes(interval) && !end)) {
         return reply(400, { error: "بيانات الاشتراك أو مدة التفعيل غير صالحة." });
       }
       const [{ data: store }, { data: plan }] = await Promise.all([
