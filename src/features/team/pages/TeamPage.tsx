@@ -12,6 +12,10 @@ const inviteRoleOptions: TeamRole[] = ['admin', 'manager', 'staff'];
 const invitationStatusLabels: Record<string, string> = {
   pending: 'بانتظار تأكيد البريد', accepted: 'مقبولة', revoked: 'ملغاة', expired: 'منتهية',
 };
+function displayedInvitationStatus(invitation: { status: string; expires_at: string }): string {
+  if (invitation.status === 'pending' && Date.parse(invitation.expires_at) <= Date.now()) return 'expired';
+  return invitation.status;
+}
 const auditLabels: Record<string, string> = {
   invited: 'إرسال دعوة', member_added: 'إضافة عضو', invitation_accepted: 'قبول الدعوة',
   role_changed: 'تغيير الدور', member_removed: 'إزالة عضو',
@@ -157,7 +161,7 @@ export function TeamPage() {
 
         <section className="mb-7 overflow-hidden rounded-2xl border bg-white">
           <div className="border-b p-5"><h2 className="font-bold">الدعوات</h2></div>
-          {!team.invitations.length ? <p className="p-8 text-center text-sm text-slate-500">لا توجد دعوات مسجلة.</p> : <div className="divide-y">{team.invitations.map(invitation => <article key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><b className="text-sm">{invitation.email}</b><p className="mt-1 text-xs text-slate-500">{roleLabels[invitation.role]} · {new Date(invitation.created_at).toLocaleDateString('ar-EG')}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{invitationStatusLabels[invitation.status]}</span></article>)}</div>}
+          {!team.invitations.length ? <p className="p-8 text-center text-sm text-slate-500">لا توجد دعوات مسجلة.</p> : <div className="divide-y">{team.invitations.map(invitation => <article key={invitation.id} className="flex flex-wrap items-center justify-between gap-3 p-4"><div><b className="text-sm">{invitation.email}</b><p className="mt-1 text-xs text-slate-500">{roleLabels[invitation.role]} · {new Date(invitation.created_at).toLocaleDateString('ar-EG')}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs">{invitationStatusLabels[displayedInvitationStatus(invitation)] ?? invitation.status}</span></article>)}</div>}
         </section>
 
         <section className="overflow-hidden rounded-2xl border bg-white">
