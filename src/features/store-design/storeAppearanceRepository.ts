@@ -12,6 +12,8 @@ export interface StoreAppearance {
   supportPhone: string;
 }
 
+export type PublicStoreAppearance = Pick<StoreAppearance, 'id'|'name'|'slug'|'currency'|'description'|'logoUrl'|'announcement'|'supportEmail'|'supportPhone'>;
+
 function raise(error: { message: string } | null) {
   if (error) throw new Error(error.message);
 }
@@ -38,7 +40,7 @@ export const storeAppearanceRepository = {
     };
   },
 
-  async getPublicBySlug(slug: string): Promise<Pick<StoreAppearance, 'id'|'name'|'slug'|'currency'|'description'|'logoUrl'> | null> {
+  async getPublicBySlug(slug: string): Promise<PublicStoreAppearance | null> {
     const { data, error } = await getSupabase()
       .from('stores')
       .select('id,name,slug,currency,description,logo_url')
@@ -47,6 +49,10 @@ export const storeAppearanceRepository = {
       .maybeSingle();
     raise(error);
     if (!data) return null;
+    const { data: publicInfo } = await getSupabase().functions.invoke('get-public-store-info', {
+      method: 'GET',
+      headers: { 'x-store-slug': slug },
+    });
     return {
       id: data.id,
       name: data.name,
@@ -54,6 +60,9 @@ export const storeAppearanceRepository = {
       currency: data.currency,
       description: data.description ?? '',
       logoUrl: data.logo_url ?? '',
+      announcement: typeof publicInfo?.announcement === 'string' ? publicInfo.announcement : '',
+      supportEmail: typeof publicInfo?.support_email === 'string' ? publicInfo.support_email : '',
+      supportPhone: typeof publicInfo?.support_phone === 'string' ? publicInfo.support_phone : '',
     };
   },
 
