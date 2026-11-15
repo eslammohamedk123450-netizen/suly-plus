@@ -143,6 +143,17 @@ export const storeRepository: StoreRepository = {
   },
 };
 
+async function fetchProduct(storeId: string, productId: string): Promise<Product | null> {
+  const { data, error } = await getSupabase()
+    .from('products')
+    .select('*, product_variants(*)')
+    .eq('store_id', storeId)
+    .eq('id', productId)
+    .maybeSingle();
+  fail(error);
+  return data ? toProduct(data) : null;
+}
+
 export const productRepository: ProductRepository = {
   async list(storeId, page = 1) {
     const from = (page - 1) * 20;
@@ -156,14 +167,7 @@ export const productRepository: ProductRepository = {
     return { items: (data ?? []).map(toProduct), total: count ?? 0, page, pageSize: 20 };
   },
   async get(storeId, productId) {
-    const { data, error } = await getSupabase()
-      .from('products')
-      .select('*, product_variants(*)')
-      .eq('store_id', storeId)
-      .eq('id', productId)
-      .maybeSingle();
-    fail(error);
-    return data ? toProduct(data) : null;
+    return fetchProduct(storeId, productId);
   },
   async create(storeId, input) {
     const firstVariant = input.variants[0];
@@ -212,7 +216,7 @@ export const productRepository: ProductRepository = {
       p_images: input.images,
     });
     fail(error);
-    const updated = await this.get(storeId, productId);
+    const updated = await fetchProduct(storeId, productId);
     if (!updated) throw new Error('تم تحديث المنتج لكن تعذر إعادة تحميله.');
     return updated;
   },
