@@ -1,23 +1,39 @@
 # Suly Plus
 
-Multi-tenant e-commerce SaaS platform inspired by Shopify.
+Multi-tenant e-commerce SaaS platform inspired by Shopify. Arabic RTL-first frontend, built to connect to an independently implemented backend.
 
-## Project status
+## Stack
+- React 18 + TypeScript
+- Vite 6
+- React Router 6
+- Tailwind CSS 3
+- Vitest + Testing Library
 
-Initial project foundation is being established. The application is designed for Arabic RTL first, with future English localization and a backend integration boundary for Supabase.
+## Local development
+1. Install Node.js (LTS) and Git.
+2. Clone this repository.
+3. Run `npm install`.
+4. Copy `.env.example` to `.env.local` and set `VITE_API_BASE_URL` when the backend is available.
+5. Run `npm run dev`.
 
-## Planned stack
+## Commands
+- `npm run dev` — local development server
+- `npm run typecheck` — TypeScript validation
+- `npm test` — unit tests
+- `npm run build` — typecheck and production build
+- `npm run preview` — preview production build
 
-- React + TypeScript + Vite
-- React Router
-- Tailwind CSS
-- Modular feature architecture
-- API/repository adapters independent of the database
+## Current implementation status
+- Initial React/Vite/TypeScript project foundation and Arabic RTL design tokens.
+- Public marketing routes, authentication placeholder routes, store setup placeholder, merchant dashboard sections, and public storefront route.
+- Shared domain types, API client boundary, repository contracts and HTTP adapter skeleton.
+- Basic input validation and unit tests.
+- Backend integration contract documentation in docs/backend-contracts.md.
 
-## Development
+Authentication, tenant data, product persistence, checkout, payment, shipping, and live analytics are not active until a backend is implemented and connected. UI placeholders do not represent live data.
 
-The application setup and commands will be documented here as the project foundation is added.
+## Security and tenant boundaries
+The frontend never treats a client-provided store ID as authorization. The backend must verify the session and authorize every operation against store ownership or membership. Keep service-role keys and all private credentials server-side.
 
-## Backend integration
-
-No database schema or Supabase resources are created by the frontend project. Backend contracts will be documented separately for the backend implementation.
+## Database
+This repository does not create or modify database schemas. Coordinate the API and data contracts with the backend implementation before enabling live features.
