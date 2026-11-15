@@ -292,8 +292,11 @@ export const checkoutRepository = {
     }));
   },
 
-  async getPaymentMethods(): Promise<CheckoutMethods> {
-    const { data, error } = await getSupabase().functions.invoke('get-checkout-methods', { method: 'GET' });
+  async getPaymentMethods(storeSlug: string): Promise<CheckoutMethods> {
+    const { data, error } = await getSupabase().functions.invoke('get-checkout-methods', {
+      method: 'GET',
+      headers: { 'x-store-slug': storeSlug },
+    });
     if (error || !data?.methods) return { cash_on_delivery: true, paymob: false };
     return {
       cash_on_delivery: data.methods.cash_on_delivery === true,
