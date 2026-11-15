@@ -88,7 +88,7 @@ Deno.serve(async (req: Request) => {
       // Check the subscription before sending an invitation email.
       const [{ data: subscription, error: subscriptionError }, { count: currentMembers, error: memberCountError }] = await Promise.all([
         admin.from("store_subscriptions")
-          .select("status,subscription_plans(is_active,max_team_members)")
+          .select("status,billing_interval,current_period_start,current_period_end,trial_end,subscription_plans(is_active,max_team_members)")
           .eq("store_id", storeId).maybeSingle(),
         admin.from("store_members").select("user_id", { count: "exact", head: true }).eq("store_id", storeId),
       ]);
@@ -96,8 +96,17 @@ Deno.serve(async (req: Request) => {
       if (subscription) {
         const plan = Array.isArray(subscription.subscription_plans)
           ? subscription.subscription_plans[0] : subscription.subscription_plans;
-        if (!plan?.is_active || !["trialing","active"].includes(subscription.status)) {
-          return reply(422, { error: "اشتراك المتجر غير نشط. لا يمكن إضافة أعضاء جدد قبل تجديده أو إعادة تفعيله." });
+        const now = Date.now();
+        const periodStart = subscription.current_period_start ? Date.parse(subscription.current_period_start) : 0;
+        const periodEnd = subscription.current_period_end ? Date.parse(subscription.current_period_end) : null;
+        const trialEnd = subscription.trial_end ? Date.parse(subscription.trial_end) : null;
+        const periodStarted = periodStart <= now;
+        const periodNotExpired = periodEnd === null || periodEnd > now;
+        const trialStillValid = subscription.status !== "trialing" || (trialEnd !== null && trialEnd > now);
+        const activeTermHasEnd = !["monthly","yearly"].includes(subscription.billing_interval) || periodEnd !== null;
+        if (!plan?.is_active || !["trialing","active"].includes(subscription.status)
+            || !periodStarted || !periodNotExpired || !trialStillValid || !activeTermHasEnd) {
+          return reply(422, { error: "اشتراك المتجر منتهي أو غير نشط. لا يمكن إضافة أعضاء جدد قبل تجديده أو إعادة تفعيله." });
         }
         if (plan.max_team_members !== null && plan.max_team_members !== undefined
             && (currentMembers ?? 0) >= Number(plan.max_team_members)) {
