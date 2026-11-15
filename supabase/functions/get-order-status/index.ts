@@ -71,7 +71,7 @@ async function reconcilePendingPaymobOrder(
     const inquiryResponse = await fetch("https://accept.paymob.com/api/ecommerce/orders/transaction_inquiry", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ auth_token: authToken, order_id: intentionOrderId }),
+      body: JSON.stringify({ auth_token: authToken, order_id: intentionOrderId, merchant_order_id: order.id }),
       signal: AbortSignal.timeout(8_000),
     });
     const inquiry = await inquiryResponse.json().catch(() => null) as Record<string, unknown> | null;
@@ -80,6 +80,9 @@ async function reconcilePendingPaymobOrder(
     const paymobOrder = inquiry.order as Record<string, unknown>;
     const transactionId = String(inquiry.id ?? "");
     const returnedOrderId = String(paymobOrder.id ?? "");
+    const merchantOrderReference = typeof paymobOrder.merchant_order_id === "string"
+      ? paymobOrder.merchant_order_id
+      : "";
     const amountCents = Number(inquiry.amount_cents);
     const expectedAmountCents = Math.round(Number(order.total) * 100);
     const ledgerAmountCents = Math.round(Number(payment.amount) * 100);
@@ -95,6 +98,7 @@ async function reconcilePendingPaymobOrder(
     // Never reconcile incomplete, pending, refunded, voided, mismatched, or non-final results.
     if (!transactionId
         || returnedOrderId !== intentionOrderId
+        || (merchantOrderReference && merchantOrderReference !== order.id)
         || pending !== false
         || typeof success !== "boolean"
         || inquiry.is_refunded === true
