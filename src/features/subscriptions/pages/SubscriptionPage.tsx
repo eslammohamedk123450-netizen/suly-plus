@@ -8,6 +8,7 @@ import { getEffectiveSubscriptionStatus } from '../subscriptionStatus';
 
 interface Plan {
   name: string;
+  is_active: boolean;
   description: string | null;
   currency: string;
   monthly_price: number;
@@ -41,7 +42,7 @@ interface Invoice {
 
 const statusLabels: Record<string, string> = {
   trialing: 'فترة تجريبية', active: 'نشط', past_due: 'متأخر السداد',
-  cancelled: 'ملغي', suspended: 'موقوف', expired: 'منتهي', upcoming: 'لم يبدأ بعد',
+  cancelled: 'ملغي', suspended: 'موقوف', expired: 'منتهي', upcoming: 'لم يبدأ بعد', plan_inactive: 'الخطة غير مفعّلة',
 };
 const invoiceLabels: Record<string, string> = {
   draft: 'مسودة', open: 'مفتوحة', paid: 'مدفوعة', void: 'ملغاة', uncollectible: 'متعذر تحصيلها',
@@ -77,7 +78,7 @@ export function SubscriptionPage() {
       if (!membership) throw new Error('لا تملك صلاحية الوصول إلى هذا المتجر.');
 
       const { data: subRow, error: subError } = await supabase.from('store_subscriptions')
-        .select('id,status,billing_interval,current_period_start,current_period_end,trial_end,subscription_plans(name,description,currency,monthly_price,yearly_price,max_products,max_team_members,max_monthly_orders,features)')
+        .select('id,status,billing_interval,current_period_start,current_period_end,trial_end,subscription_plans(name,is_active,description,currency,monthly_price,yearly_price,max_products,max_team_members,max_monthly_orders,features)')
         .eq('store_id', id).maybeSingle();
       if (subError) throw subError;
       const planValue = Array.isArray(subRow?.subscription_plans) ? subRow.subscription_plans[0] : subRow?.subscription_plans;
@@ -125,6 +126,7 @@ export function SubscriptionPage() {
     currentPeriodStart: subscription.current_period_start,
     currentPeriodEnd: subscription.current_period_end,
     trialEnd: subscription.trial_end,
+    planActive: plan?.is_active,
   }) : null;
 
   return <>
