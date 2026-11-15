@@ -21,6 +21,8 @@ export function CheckoutPage() {
   const [governorate, setGovernorate] = useState('');
   const [postalCode, setPostalCode] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cash_on_delivery' | 'paymob'>('cash_on_delivery');
+  const [paymentMethods, setPaymentMethods] = useState({ cash_on_delivery: true, paymob: false });
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -32,9 +34,13 @@ export function CheckoutPage() {
     async function load() {
       setLoading(true); setError('');
       try {
-        const found = await storeRepository.getBySlug(storeSlug);
+        const [found, methods] = await Promise.all([
+          storeRepository.getBySlug(storeSlug),
+          checkoutRepository.getPaymentMethods(),
+        ]);
         if (!active) return;
         setStore(found);
+        setPaymentMethods(methods);
         if (!found) return;
         if (!savedCart.length) return;
         const result = await checkoutRepository.getProducts(found.id, savedCart.map(line => line.productId));
@@ -78,11 +84,16 @@ export function CheckoutPage() {
           postal_code: postalCode.trim(),
         },
         items: cart.map(line => ({ product_id: line.productId, quantity: line.quantity })),
-        payment_method: 'cash_on_delivery',
+        payment_method: paymentMethod,
         notes: notes.trim(),
       });
       clearCart(storeSlug);
       setCart([]);
+      if (paymentMethod === 'paymob') {
+        if (!order.checkout_url) throw new Error('لم يرجع خادم الدفع رابط التحويل الآمن.');
+        window.location.assign(order.checkout_url);
+        return;
+      }
       navigate(`/store/${storeSlug}/order/${order.order_number}?token=${encodeURIComponent(order.public_token)}`, { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذر تسجيل الطلب.');
@@ -95,7 +106,7 @@ export function CheckoutPage() {
   if (!store) return <main className="container-shell py-20 text-center">المتجر غير متاح.</main>;
 
   return <main className="container-shell max-w-5xl py-10">
-    <div className="mb-8 flex flex-wrap items-center justify-between gap-3"><div><Link to={`/store/${storeSlug}`} className="text-sm text-brand-600">العودة إلى المتجر</Link><h1 className="mt-3 text-3xl font-bold">إتمام الطلب</h1><p className="mt-2 text-sm text-slate-500">{store.name}</p></div><span className="rounded-full bg-slate-100 px-4 py-2 text-sm">الدفع عند الاستلام</span></div>
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-3"><div><Link to={`/store/${storeSlug}`} className="text-sm text-brand-600">العودة إلى المتجر</Link><h1 className="mt-3 text-3xl font-bold">إتمام الطلب</h1><p className="mt-2 text-sm text-slate-500">{store.name}</p></div><span className="rounded-full bg-slate-100 px-4 py-2 text-sm">إتمام آمن للطلب</span></div>
     {error && <div role="alert" className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
     {!cart.length && <div className="rounded-2xl border bg-white p-10 text-center"><h2 className="font-bold">سلتك فارغة</h2><Link to={`/store/${storeSlug}`} className="btn-primary mt-5 inline-block">تصفح المنتجات</Link></div>}
     {cart.length > 0 && <div className="grid gap-6 lg:grid-cols-[1.2fr_.8fr]">
@@ -111,9 +122,21 @@ export function CheckoutPage() {
           <label className="text-sm font-medium">المدينة / المركز<input required value={city} onChange={e => setCity(e.target.value)} className="mt-2 w-full rounded-xl border p-3" autoComplete="address-level2" /></label>
           <label className="text-sm font-medium">الرمز البريدي (اختياري)<input value={postalCode} onChange={e => setPostalCode(e.target.value)} className="mt-2 w-full rounded-xl border p-3" autoComplete="postal-code" /></label>
         </div></section>
+        <section><h2 className="text-lg font-bold">طريقة الدفع</h2>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 ${paymentMethod === 'cash_on_delivery' ? 'border-brand-500 bg-brand-50' : 'border-slate-200'}`}>
+              <input type="radio" name="payment-method" value="cash_on_delivery" checked={paymentMethod === 'cash_on_delivery'} onChange={() => setPaymentMethod('cash_on_delivery')} className="mt-1" />
+              <span><b className="block text-sm">الدفع عند الاستلام</b><span className="mt-1 block text-xs text-slate-500">ادفع نقدًا عند وصول الطلب.</span></span>
+            </label>
+            <label className={`flex items-start gap-3 rounded-xl border p-4 ${paymentMethods.paymob ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'} ${paymentMethod === 'paymob' ? 'border-brand-500 bg-brand-50' : 'border-slate-200'}`}>
+              <input type="radio" name="payment-method" value="paymob" checked={paymentMethod === 'paymob'} disabled={!paymentMethods.paymob} onChange={() => setPaymentMethod('paymob')} className="mt-1" />
+              <span><b className="block text-sm">الدفع الإلكتروني عبر Paymob</b><span className="mt-1 block text-xs text-slate-500">{paymentMethods.paymob ? 'بطاقة أو وسيلة الدفع المفعّلة بحساب التاجر.' : 'غير متاح حتى يضبط صاحب المنصة بيانات حساب Paymob في Supabase.'}</span></span>
+            </label>
+          </div>
+        </section>
         <section><h2 className="text-lg font-bold">ملاحظات الطلب</h2><textarea rows={3} maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} className="mt-3 w-full rounded-xl border p-3" placeholder="أي تفاصيل إضافية للتوصيل (اختياري)" /></section>
-        <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">سيتم تأكيد الطلب والدفع نقدًا عند الاستلام. لا يتم تحصيل أي مبلغ إلكتروني حاليًا.</div>
-        <button disabled={submitting || missingProducts || stockExceeded} className="btn-primary w-full disabled:opacity-50">{submitting ? 'جارٍ تسجيل الطلب...' : 'تأكيد الطلب'}</button>
+        <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">{paymentMethod === 'paymob' ? 'سيتم تحويلك إلى صفحة Paymob الآمنة. حالة الدفع ستتحدث بعد وصول التأكيد الموثوق من بوابة الدفع.' : 'ستدفع نقدًا عند استلام الطلب. لا يتم تحصيل أي مبلغ إلكتروني.'}</div>
+        <button disabled={submitting || missingProducts || stockExceeded || (paymentMethod === 'paymob' && !paymentMethods.paymob)} className="btn-primary w-full disabled:opacity-50">{submitting ? 'جارٍ تسجيل الطلب...' : paymentMethod === 'paymob' ? 'المتابعة إلى الدفع الإلكتروني' : 'تأكيد الطلب'}</button>
       </form>
       <aside className="h-fit rounded-2xl border bg-white p-6"><h2 className="text-lg font-bold">ملخص الطلب</h2>
         <div className="mt-5 space-y-4">{availableLines.map(line => <div key={line.productId} className="flex items-start justify-between gap-4 border-b pb-3 text-sm"><div className="min-w-0"><p className="font-medium">{line.product?.name}</p><div className="mt-2 flex items-center gap-2"><button type="button" aria-label="تقليل الكمية" onClick={() => changeQuantity(line.productId, line.quantity - 1)} className="grid h-7 w-7 place-items-center rounded-md border">−</button><span className="min-w-5 text-center">{line.quantity}</span><button type="button" aria-label="زيادة الكمية" onClick={() => changeQuantity(line.productId, line.quantity + 1)} className="grid h-7 w-7 place-items-center rounded-md border" disabled={line.quantity >= 100}>+</button><button type="button" onClick={() => changeQuantity(line.productId, 0)} className="mr-2 text-xs text-red-600">حذف</button></div></div><b className="whitespace-nowrap">{money((line.product?.price ?? 0) * line.quantity, store.currency)}</b></div>)}</div>
