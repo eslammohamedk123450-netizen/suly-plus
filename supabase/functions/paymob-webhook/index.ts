@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2.119.0";
+import { isPaymobIntegrationId } from "../_shared/paymob.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -125,7 +125,7 @@ Deno.serve(async (req: Request) => {
       || typeof success !== "boolean"
       || !Number.isSafeInteger(amountCents) || amountCents <= 0
       || !/^[A-Z]{3}$/.test(currency)
-      || !/^\\d+$/.test(configuredIntegrationId)
+      || !isPaymobIntegrationId(configuredIntegrationId)
       || Number(obj.integration_id) !== Number(configuredIntegrationId)) {
     return response(400, { error: "Missing required transaction reference fields." });
   }
