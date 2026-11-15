@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Category, Product } from '../../../domain/types';
 import { categoryRepository, productRepository } from '../../../services/repositories/supabaseRepositories';
@@ -14,6 +14,10 @@ export function StorefrontPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState('');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<'newest'|'price_asc'|'price_desc'|'name'>('newest');
+  const [page, setPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [cartCount, setCartCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -34,6 +38,8 @@ export function StorefrontPage() {
           ]);
           if (active) {
             setProducts(productResult.items.filter(product => product.status === 'active'));
+            setTotalProducts(productResult.total);
+            setPage(productResult.page);
             setCategories(categoryResult.filter(category => category.isActive));
             setActiveCategoryId('');
           }
@@ -70,6 +76,12 @@ export function StorefrontPage() {
       </div>
       <button onClick={() => navigate(`/store/${storeSlug}/cart`)} className="btn-primary">السلة ({cartCount})</button>
     </header>
+    <section className="mb-5 grid gap-3 sm:grid-cols-[1fr_220px]">
+      <input aria-label="البحث عن منتج" value={query} onChange={event => setQuery(event.target.value)} placeholder="ابحث عن منتج بالاسم أو الوصف..." className="w-full rounded-xl border bg-white p-3 text-sm" />
+      <select aria-label="ترتيب المنتجات" value={sort} onChange={event => setSort(event.target.value as typeof sort)} className="rounded-xl border bg-white p-3 text-sm">
+        <option value="newest">الأحدث أولًا</option><option value="price_asc">السعر: من الأقل للأعلى</option><option value="price_desc">السعر: من الأعلى للأقل</option><option value="name">الاسم: أ-ي</option>
+      </select>
+    </section>
     {categories.length > 0 && <nav aria-label="تصنيفات المنتجات" className="mb-8 flex flex-wrap gap-2">
       <button type="button" onClick={() => setActiveCategoryId('')} aria-pressed={!activeCategoryId}
         className={`rounded-full border px-4 py-2 text-sm font-medium ${!activeCategoryId ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>كل المنتجات</button>
