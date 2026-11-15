@@ -145,7 +145,6 @@ export function InventoryPage() {
   }
 
   const pageCount = Math.max(1, Math.ceil(totalProducts / 20));
-  const currentPageProductMap = new Map(products.map((product) => [product.id, product.name]));
 
   return (
     <>
@@ -192,7 +191,7 @@ export function InventoryPage() {
               <p className="mt-2 text-2xl font-bold">{totalUnits}</p>
             </div>
             <div className="rounded-2xl border bg-white p-5">
-              <p className="text-sm text-slate-500">نفد / منخفض (حتى {LOW_STOCK_THRESHOLD})</p>
+              <p className="text-sm text-slate-500">نفد / منخفض في الصفحة (حتى {LOW_STOCK_THRESHOLD})</p>
               <p className="mt-2 text-2xl font-bold">{outOfStock} / {lowStock}</p>
             </div>
           </div>
@@ -288,7 +287,7 @@ export function InventoryPage() {
                     return (
                       <div key={movement.id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
                         <div>
-                          <b>{currentPageProductMap.get(movement.product_id) ?? 'منتج'}</b>
+                          <b>{movement.product_name ?? 'منتج محذوف'}</b>
                           <p className="mt-1 text-xs text-slate-500">{movementLabel(movement.reason)} · {new Date(movement.created_at).toLocaleString('ar-EG')}</p>
                         </div>
                         <span className={positive ? 'font-bold text-emerald-700' : 'font-bold text-red-700'}>
