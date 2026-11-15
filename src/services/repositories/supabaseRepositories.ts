@@ -250,6 +250,12 @@ export interface GuestOrderResult {
   subtotal: number;
   total: number;
   created_at: string;
+  checkout_url?: string;
+}
+
+export interface CheckoutMethods {
+  cash_on_delivery: boolean;
+  paymob: boolean;
 }
 
 export interface PublicOrderStatus {
@@ -286,6 +292,15 @@ export const checkoutRepository = {
     }));
   },
 
+  async getPaymentMethods(): Promise<CheckoutMethods> {
+    const { data, error } = await getSupabase().functions.invoke('get-checkout-methods', { method: 'GET' });
+    if (error || !data?.methods) return { cash_on_delivery: true, paymob: false };
+    return {
+      cash_on_delivery: data.methods.cash_on_delivery === true,
+      paymob: data.methods.paymob === true,
+    };
+  },
+
   async createGuestOrder(input: {
     store_slug: string;
     customer_name: string;
@@ -293,13 +308,13 @@ export const checkoutRepository = {
     customer_phone: string;
     shipping_address: { address: string; city: string; governorate: string; postal_code: string };
     items: Array<{ product_id: string; quantity: number }>;
-    payment_method: 'cash_on_delivery';
+    payment_method: 'cash_on_delivery' | 'paymob';
     notes?: string;
   }): Promise<GuestOrderResult> {
     const { data, error } = await getSupabase().functions.invoke('create-guest-order', { body: input });
     if (error) throw new Error('تعذر إرسال الطلب. تحقق من الاتصال وحاول مرة أخرى.');
     if (!data?.ok || !data?.order) throw new Error(data?.error ?? 'تعذر إنشاء الطلب.');
-    return data.order as GuestOrderResult;
+    return { ...(data.order as GuestOrderResult), checkout_url: typeof data.checkout_url === 'string' ? data.checkout_url : undefined };
   },
 
   async getOrderStatus(orderNumber: number, publicToken: string): Promise<PublicOrderStatus> {
