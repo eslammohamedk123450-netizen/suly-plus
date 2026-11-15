@@ -261,6 +261,8 @@ Deno.serve(async (req: Request) => {
       if (message.includes("Product unavailable")) return response(409, { error: "أحد المنتجات لم يعد متاحًا." });
       if (message.includes("Coupon unavailable")) return response(422, { error: "كود الخصم غير صالح أو منتهي أو تجاوز حد الاستخدام." });
       if (message.includes("Electronic payment requires")) return response(422, { error: "لا يمكن استخدام الدفع الإلكتروني مع إجمالي مجاني." });
+      if (message.includes("SUBSCRIPTION_NOT_ACTIVE")) return response(422, { error: "المتجر متوقف مؤقتًا بسبب حالة الاشتراك. تواصل مع إدارة المتجر." });
+      if (message.includes("PLAN_LIMIT_MONTHLY_ORDERS_REACHED")) return response(429, { error: "وصل المتجر إلى الحد الأقصى للطلبات خلال هذه الفترة. تواصل مع إدارة المتجر." });
       return response(400, { error: "تعذر إنشاء الطلب. راجع بيانات السلة والعنوان وحاول مجددًا." });
     }
     if (!order || typeof order !== "object") return response(500, { error: "تعذر إنشاء الطلب." });
