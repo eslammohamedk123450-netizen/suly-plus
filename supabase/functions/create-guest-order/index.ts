@@ -1,3 +1,4 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,6 +167,7 @@ Deno.serve(async (req: Request) => {
   const notes = typeof body.notes === "string" ? body.notes.trim().slice(0, 1000) : null;
   const paymentMethod = typeof body.payment_method === "string" ? body.payment_method : "cash_on_delivery";
   const rawItems = body.items;
+  const couponCode = typeof body.coupon_code === "string" ? body.coupon_code.trim().toUpperCase() : null;
 
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(storeSlug) || storeSlug.length > 100) {
     return response(400, { error: "اسم رابط المتجر غير صالح." });
@@ -190,6 +192,9 @@ Deno.serve(async (req: Request) => {
   }
   if (!Array.isArray(rawItems) || rawItems.length < 1 || rawItems.length > 30) {
     return response(400, { error: "السلة فارغة أو تحتوي على عدد غير مسموح من المنتجات." });
+  }
+  if (couponCode && !/^[A-Z0-9_-]{3,40}$/.test(couponCode)) {
+    return response(400, { error: "كود الخصم غير صالح." });
   }
   if (paymentMethod !== "cash_on_delivery" && paymentMethod !== "paymob") {
     return response(400, { error: "طريقة الدفع غير مدعومة." });
@@ -246,6 +251,7 @@ Deno.serve(async (req: Request) => {
       p_items: [...aggregated.entries()].map(([product_id, quantity]) => ({ product_id, quantity })),
       p_notes: notes,
       p_payment_method: paymentMethod,
+      p_coupon_code: couponCode,
     });
 
     if (error) {
@@ -253,6 +259,8 @@ Deno.serve(async (req: Request) => {
       if (message.includes("Insufficient stock")) return response(409, { error: "الكمية المطلوبة غير متاحة حاليًا." });
       if (message.includes("Store not found")) return response(404, { error: "المتجر غير موجود أو غير متاح." });
       if (message.includes("Product unavailable")) return response(409, { error: "أحد المنتجات لم يعد متاحًا." });
+      if (message.includes("Coupon unavailable")) return response(422, { error: "كود الخصم غير صالح أو منتهي أو تجاوز حد الاستخدام." });
+      if (message.includes("Electronic payment requires")) return response(422, { error: "لا يمكن استخدام الدفع الإلكتروني مع إجمالي مجاني." });
       return response(400, { error: "تعذر إنشاء الطلب. راجع بيانات السلة والعنوان وحاول مجددًا." });
     }
     if (!order || typeof order !== "object") return response(500, { error: "تعذر إنشاء الطلب." });
