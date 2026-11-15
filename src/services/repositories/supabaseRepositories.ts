@@ -107,9 +107,14 @@ export const authRepository: AuthRepository = {
 
 export const storeRepository: StoreRepository = {
   async listForCurrentUser() {
-    const { data, error } = await getSupabase()
+    const supabase = getSupabase();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    fail(authError);
+    if (!authData.user) return [];
+    const { data, error } = await supabase
       .from('store_members')
       .select('store_id, stores!inner(id, created_by, name, slug, currency)')
+      .eq('user_id', authData.user.id)
       .order('created_at', { ascending: false });
     fail(error);
     return (data ?? []).map((row: any) => toStore(row.stores));
