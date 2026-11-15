@@ -167,42 +167,30 @@ export const productRepository: ProductRepository = {
   async create(storeId, input) {
     const firstVariant = input.variants[0];
     const price = (firstVariant?.priceMinor ?? 0) / 100;
-    const { data: product, error } = await getSupabase()
+    const slug = input.name.toLowerCase().trim().replace(/[^\\p{L}\\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+    const { data: created, error: createError } = await getSupabase()
+      .rpc('create_product', {
+        p_store_id: storeId,
+        p_name: input.name,
+        p_slug: slug,
+        p_description: input.description,
+        p_status: input.status,
+        p_price: price,
+        p_currency: input.currency,
+        p_stock_quantity: firstVariant?.inventoryQuantity ?? 0,
+        p_sku: firstVariant?.sku || null,
+        p_images: input.images,
+      });
+    fail(createError);
+    if (!created?.id) throw new Error('لم يتم إرجاع المنتج الذي تم إنشاؤه.');
+    const { data, error } = await getSupabase()
       .from('products')
-      .insert({
-        store_id: storeId,
-        name: input.name,
-        slug: input.name.toLowerCase().trim().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, ''),
-        description: input.description,
-        status: input.status,
-        price,
-        currency: input.currency,
-        stock_quantity: firstVariant?.inventoryQuantity ?? 0,
-        sku: firstVariant?.sku || null,
-        images: input.images,
-      })
-      .select('*')
+      .select('*, product_variants(*)')
+      .eq('store_id', storeId)
+      .eq('id', created.id)
       .single();
     fail(error);
-    if (firstVariant) {
-      const { error: variantError } = await getSupabase().from('product_variants').insert({
-        store_id: storeId,
-        product_id: product.id,
-        name: input.name,
-        sku: firstVariant.sku || null,
-        price,
-        stock_quantity: firstVariant.inventoryQuantity,
-        options: firstVariant.options,
-      });
-      fail(variantError);
-    }
-    return toProduct({ ...product, product_variants: firstVariant ? [{
-      id: '',
-      sku: firstVariant.sku,
-      options: firstVariant.options,
-      price,
-      stock_quantity: firstVariant.inventoryQuantity,
-    }] : [] });
+    return toProduct(data);
   },
 };
 
