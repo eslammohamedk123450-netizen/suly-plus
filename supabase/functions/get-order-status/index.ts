@@ -14,7 +14,7 @@ function response(status: number, body: Record<string, unknown>) {
 }
 
 function isPaymobIntegrationId(value: string): boolean {
-  return /^\\d+$/.test(value);
+  return /^\d+$/.test(value);
 }
 
 async function reconcilePendingPaymobOrder(
@@ -56,7 +56,7 @@ async function reconcilePendingPaymobOrder(
       ? metadata.intention_order_id
       : String(metadata.intention_order_id ?? "");
 
-    if (!/^\\d+$/.test(intentionOrderId) || metadata.suly_order_id !== order.id) return;
+    if (!/^\d+$/.test(intentionOrderId) || metadata.suly_order_id !== order.id) return;
 
     const authResponse = await fetch("https://accept.paymob.com/api/auth/tokens", {
       method: "POST",
