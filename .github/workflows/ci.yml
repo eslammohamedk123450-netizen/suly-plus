@@ -32,7 +32,7 @@ jobs:
         run: npm install
 
       - name: Fail on high or critical dependency vulnerabilities
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=moderate
 
       - name: Report dependency security advisories
         run: |
