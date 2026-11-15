@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { Store } from '../../../domain/types';
 import { checkoutRepository, storeRepository, type CheckoutCartProduct } from '../../../services/repositories/supabaseRepositories';
-import { clearCart, readCart, type CartLine } from '../cart';
+import { clearCart, readCart, writeCart, type CartLine } from '../cart';
 
 const money = (amount: number, currency: string) =>
   new Intl.NumberFormat('ar-EG', { style: 'currency', currency }).format(amount);
@@ -51,10 +51,19 @@ export function CheckoutPage() {
   const availableLines = cart.map(line => ({ ...line, product: productMap.get(line.productId) })).filter(line => Boolean(line.product));
   const subtotal = availableLines.reduce((sum, line) => sum + (line.product?.price ?? 0) * line.quantity, 0);
   const missingProducts = cart.length !== availableLines.length;
+  const stockExceeded = availableLines.some(line => line.product?.track_inventory && line.product.stock_quantity < line.quantity);
+
+  function changeQuantity(productId: string, quantity: number) {
+    const next = quantity < 1
+      ? cart.filter(line => line.productId !== productId)
+      : cart.map(line => line.productId === productId ? { ...line, quantity: Math.min(100, quantity) } : line);
+    setCart(next);
+    writeCart(storeSlug, next);
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!store || !cart.length || missingProducts) return;
+    if (!store || !cart.length || missingProducts || stockExceeded) return;
     setSubmitting(true); setError('');
     try {
       const order = await checkoutRepository.createGuestOrder({
@@ -104,10 +113,10 @@ export function CheckoutPage() {
         </div></section>
         <section><h2 className="text-lg font-bold">ملاحظات الطلب</h2><textarea rows={3} maxLength={1000} value={notes} onChange={e => setNotes(e.target.value)} className="mt-3 w-full rounded-xl border p-3" placeholder="أي تفاصيل إضافية للتوصيل (اختياري)" /></section>
         <div className="rounded-xl bg-slate-50 p-4 text-sm text-slate-600">سيتم تأكيد الطلب والدفع نقدًا عند الاستلام. لا يتم تحصيل أي مبلغ إلكتروني حاليًا.</div>
-        <button disabled={submitting || missingProducts} className="btn-primary w-full disabled:opacity-50">{submitting ? 'جارٍ تسجيل الطلب...' : 'تأكيد الطلب'}</button>
+        <button disabled={submitting || missingProducts || stockExceeded} className="btn-primary w-full disabled:opacity-50">{submitting ? 'جارٍ تسجيل الطلب...' : 'تأكيد الطلب'}</button>
       </form>
       <aside className="h-fit rounded-2xl border bg-white p-6"><h2 className="text-lg font-bold">ملخص الطلب</h2>
-        <div className="mt-5 space-y-4">{availableLines.map(line => <div key={line.productId} className="flex items-start justify-between gap-4 text-sm"><div><p className="font-medium">{line.product?.name}</p><p className="mt-1 text-slate-500">الكمية: {line.quantity}</p></div><b className="whitespace-nowrap">{money((line.product?.price ?? 0) * line.quantity, store.currency)}</b></div>)}</div>
+        <div className="mt-5 space-y-4">{availableLines.map(line => <div key={line.productId} className="flex items-start justify-between gap-4 border-b pb-3 text-sm"><div className="min-w-0"><p className="font-medium">{line.product?.name}</p><div className="mt-2 flex items-center gap-2"><button type="button" aria-label="تقليل الكمية" onClick={() => changeQuantity(line.productId, line.quantity - 1)} className="grid h-7 w-7 place-items-center rounded-md border">−</button><span className="min-w-5 text-center">{line.quantity}</span><button type="button" aria-label="زيادة الكمية" onClick={() => changeQuantity(line.productId, line.quantity + 1)} className="grid h-7 w-7 place-items-center rounded-md border" disabled={line.quantity >= 100}>+</button><button type="button" onClick={() => changeQuantity(line.productId, 0)} className="mr-2 text-xs text-red-600">حذف</button></div></div><b className="whitespace-nowrap">{money((line.product?.price ?? 0) * line.quantity, store.currency)}</b></div>)}</div>
         {missingProducts && <p role="alert" className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">أحد المنتجات لم يعد متاحًا. ارجع للمتجر وحدّث السلة.</p>}
         {availableLines.some(line => line.product?.track_inventory && line.product.stock_quantity < line.quantity) && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">بعض الكميات أكبر من المخزون المتاح؛ سيُعاد التحقق عند إرسال الطلب.</p>}
         <div className="mt-6 flex justify-between border-t pt-5"><span className="font-semibold">الإجمالي</span><strong className="text-xl">{money(subtotal, store.currency)}</strong></div>
