@@ -1,4 +1,4 @@
-import type { Customer, Order, PageResult, Product, Store, User } from '../../domain/types';
+import type { Customer, Order, Product, Store, User } from '../../domain/types';
 import type { AuthRepository, CustomerRepository, OrderRepository, ProductRepository, StoreRepository } from './contracts';
 import { getSupabase } from '../supabase/client';
 
