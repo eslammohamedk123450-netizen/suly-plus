@@ -18,9 +18,11 @@
 | `PAYMOB_PUBLIC_KEY` | Public Key الخاص بالمتجر/حساب التاجر |
 | `PAYMOB_INTEGRATION_ID` | رقم Payment Integration في حساب Paymob |
 | `PAYMOB_HMAC_SECRET` | قيمة HMAC Secret من إعدادات Paymob |
-| `SULY_PUBLIC_URL` | عنوان HTTPS العام للواجهة الأمامية، دون / في النهاية |\n| `PAYMOB_ENABLED_STORE_SLUG` | رابط متجر الاختبار الوحيد المسموح له باستخدام حساب Paymob هذا |
+| `SULY_PUBLIC_URL` | عنوان HTTPS العام للواجهة الأمامية، دون / في النهاية |
+| `PAYMOB_ENABLED_STORE_SLUG` | رابط متجر الاختبار الوحيد المسموح له باستخدام حساب Paymob هذا |
+| `PAYMOB_API_KEY` | مفتاح API للاستعلام الاحتياطي عن المعاملة عند تأخر Callback (اختياري) |
 
-لا ترسل المفاتيح في المحادثة ولا تضفها إلى `.env.local` أو GitHub أو أي متغير يبدأ بـ `VITE_`.
+لا ترسل المفاتيح في المحادثة ولا تضفها إلى `.env.local` أو GitHub أو أي متغير يبدأ بـ `VITE_`. مفتاح `PAYMOB_API_KEY` اختياري للفحص الاحتياطي، لكنه يجب أن يبقى Secret داخل Supabase مثل بقية المفاتيح.
 
 بعد إضافة القيم، يقرأ `get-checkout-methods` حالة الإعداد تلقائيًا. لا يظهر Paymob إلا داخل المتجر الذي يطابق `PAYMOB_ENABLED_STORE_SLUG` حرفيًا. جميع المتاجر الأخرى تبقى على الدفع عند الاستلام. لا تحتاج إلى إعادة نشر الدوال بعد ضبط Secrets.
 
@@ -29,6 +31,12 @@
 - Redirect: `SULY_PUBLIC_URL/store/{storeSlug}/order/{orderNumber}?token={publicToken}`
 
 أدخل رابط Callback أعلاه في إعدادات تكامل Paymob عند الحاجة. يستخدم إنشاء الـ Intention عنوان Callback نفسه تلقائيًا، ويحدد Redirect من `SULY_PUBLIC_URL`.
+
+## الفحص الاحتياطي لحالة الدفع
+- يظل Webhook الموقّع بـ HMAC هو المصدر الأساسي لحالة الدفع.
+- عند فتح رابط التتبع بعد مرور دقيقتين على طلب Paymob ما زال معلّقًا، تستخدم الدالة `get-order-status` مفتاح `PAYMOB_API_KEY` للحصول على Auth Token ثم تستعلم عن Paymob Transaction Inquiry.
+- لا يتم تحديث الحالة إلا إذا كانت النتيجة نهائية (`pending=false`) وطابقت رقم طلب Paymob والمبلغ والعملة وIntegration ID مع السجلات الداخلية. النتائج الناقصة أو المعلّقة أو المستردة أو الملغاة لا تغيّر حالة الطلب.
+- إذا لم تضف `PAYMOB_API_KEY`، يظل التتبع معتمدًا على Webhook وتحديث الصفحة، دون الاستعلام الاحتياطي.
 
 ## قيود مهمة
 - التكامل الحالي يستخدم حساب Paymob واحدًا على مستوى مشروع Suly Plus؛ لا يوفّر بعد حساب تحصيل مستقلًا لكل متجر أو تحويل مستحقات.
