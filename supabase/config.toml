@@ -18,3 +18,6 @@ verify_jwt = true
 
 [functions.platform-admin-manage-store]
 verify_jwt = true
+
+[functions.manage-store-team]
+verify_jwt = true
