@@ -165,6 +165,7 @@ Deno.serve(async (req: Request) => {
           await admin.auth.admin.deleteUser(invitedUserId);
         }
         if (error.message.includes("already a store member")) return reply(409, { error: "هذا المستخدم عضو بالفعل في المتجر." });
+        if (error.message.includes("TEAM_INVITE_RATE_LIMIT_REACHED")) return reply(429, { error: "وصل المتجر إلى الحد اليومي للدعوات. حاول مرة أخرى بعد مرور 24 ساعة." });
         if (error.message.includes("PLAN_LIMIT_TEAM_MEMBERS_REACHED")) return reply(422, { error: "وصل المتجر إلى الحد الأقصى لأعضاء الفريق في خطته الحالية." });
         if (error.message.includes("SUBSCRIPTION_NOT_ACTIVE")) return reply(422, { error: "اشتراك المتجر غير نشط. لا يمكن إضافة أعضاء جدد." });
         return reply(400, { error: "تعذر حفظ دعوة الفريق." });
