@@ -1,4 +1,4 @@
-import type { Customer, Order, PageResult, Product, Store, User } from '../../domain/types';
+import type { Customer, Order, OrderStatus, OrderStatusHistory, PageResult, Product, Store, User } from '../../domain/types';
 
 export interface AuthRepository {
   currentUser(): Promise<User | null>;
@@ -6,13 +6,11 @@ export interface AuthRepository {
   signOut(): Promise<void>;
   signUp(input: { displayName: string; email: string; password: string }): Promise<User>;
 }
-
 export interface StoreRepository {
   listForCurrentUser(): Promise<Store[]>;
   create(input: Pick<Store, 'name' | 'slug' | 'currency'>): Promise<Store>;
   getBySlug(slug: string): Promise<Store | null>;
 }
-
 export interface ProductRepository {
   list(storeId: string, page?: number): Promise<PageResult<Product>>;
   get(storeId: string, productId: string): Promise<Product | null>;
@@ -20,11 +18,11 @@ export interface ProductRepository {
   update(storeId: string, productId: string, input: Omit<Product, 'id' | 'storeId'>): Promise<Product>;
   updateStatus(storeId: string, productId: string, status: Product['status']): Promise<void>;
 }
-
 export interface OrderRepository {
   list(storeId: string, page?: number): Promise<PageResult<Order>>;
+  updateStatus(storeId: string, orderId: string, status: OrderStatus, note?: string): Promise<void>;
+  listStatusHistory(storeId: string, orderId: string): Promise<OrderStatusHistory[]>;
 }
-
 export interface CustomerRepository {
   list(storeId: string, page?: number): Promise<PageResult<Customer>>;
 }
