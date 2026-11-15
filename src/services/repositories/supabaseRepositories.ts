@@ -19,6 +19,8 @@ function toStore(row: any): Store {
   return { id: row.id, ownerId: row.created_by, name: row.name, slug: row.slug, currency: row.currency };
 }
 
+const PRODUCT_SELECT = 'id, store_id, category_id, name, slug, description, sku, status, price, currency, stock_quantity, track_inventory, images, created_at, updated_at, product_variants(*)';
+
 function toProduct(row: any): Product {
   const variants = (row.product_variants ?? []).map((v: any) => ({
     id: v.id,
@@ -146,7 +148,7 @@ export const storeRepository: StoreRepository = {
 async function fetchProduct(storeId: string, productId: string): Promise<Product | null> {
   const { data, error } = await getSupabase()
     .from('products')
-    .select('*, product_variants(*)')
+    .select(PRODUCT_SELECT)
     .eq('store_id', storeId)
     .eq('id', productId)
     .maybeSingle();
@@ -159,7 +161,7 @@ export const productRepository: ProductRepository = {
     const from = (page - 1) * 20;
     const { data, error, count } = await getSupabase()
       .from('products')
-      .select('*, product_variants(*)', { count: 'exact' })
+      .select(PRODUCT_SELECT, { count: 'exact' })
       .eq('store_id', storeId)
       .order('created_at', { ascending: false })
       .range(from, from + 19);
@@ -190,7 +192,7 @@ export const productRepository: ProductRepository = {
     if (!created?.id) throw new Error('لم يتم إرجاع المنتج الذي تم إنشاؤه.');
     const { data, error } = await getSupabase()
       .from('products')
-      .select('*, product_variants(*)')
+      .select(PRODUCT_SELECT)
       .eq('store_id', storeId)
       .eq('id', created.id)
       .single();
@@ -294,7 +296,7 @@ export const inventoryRepository = {
       .eq('store_id', storeId)
       .in('id', productIds);
     fail(productError);
-    const productNames = new Map((productRows ?? []).map((product: { id: string; name: string }) => [product.id, product.name]));
+    const productNames = new Map<string, string>((productRows ?? []).map((product: { id: string; name: string }): [string, string] => [product.id, product.name]));
     return movements.map((movement) => ({
       ...movement,
       product_name: productNames.get(movement.product_id) ?? null,
