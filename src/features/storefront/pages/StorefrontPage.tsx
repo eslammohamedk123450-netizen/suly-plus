@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import type { Product, Store } from '../../../domain/types';
-import { productRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
+import type { Category, Product, Store } from '../../../domain/types';
+import { categoryRepository, productRepository, storeRepository } from '../../../services/repositories/supabaseRepositories';
 import { addCartItem, readCart } from '../cart';
 
 export function StorefrontPage() {
@@ -9,6 +9,8 @@ export function StorefrontPage() {
   const navigate = useNavigate();
   const [store, setStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState('');
   const [cartCount, setCartCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,8 +25,15 @@ export function StorefrontPage() {
         if (!active) return;
         setStore(found);
         if (found) {
-          const result = await productRepository.list(found.id, 1);
-          if (active) setProducts(result.items.filter(product => product.status === 'active'));
+          const [productResult, categoryResult] = await Promise.all([
+            productRepository.list(found.id, 1),
+            categoryRepository.list(found.id),
+          ]);
+          if (active) {
+            setProducts(productResult.items.filter(product => product.status === 'active'));
+            setCategories(categoryResult.filter(category => category.isActive));
+            setActiveCategoryId('');
+          }
         }
       } catch (cause) {
         if (active) setError(cause instanceof Error ? cause.message : 'تعذر تحميل المتجر.');
@@ -33,6 +42,10 @@ export function StorefrontPage() {
     void load();
     return () => { active = false; };
   }, [storeSlug]);
+
+  const visibleProducts = activeCategoryId
+    ? products.filter((product) => product.categoryId === activeCategoryId)
+    : products;
 
   function add(productId: string) {
     const cart = addCartItem(storeSlug, productId);
@@ -48,9 +61,24 @@ export function StorefrontPage() {
       <div className="text-center sm:text-right"><h1 className="text-3xl font-bold">{store.name}</h1><p className="mt-2 text-sm text-slate-500">تسوّق منتجاتنا</p></div>
       <button onClick={() => navigate(`/store/${storeSlug}/checkout`)} className="btn-primary">السلة ({cartCount}) وإتمام الطلب</button>
     </header>
-    {products.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{products.map(product => <article key={product.id} className="overflow-hidden rounded-2xl border bg-white">
+    {categories.length > 0 && <nav aria-label="تصنيفات المنتجات" className="mb-8 flex flex-wrap gap-2">
+      <button type="button" onClick={() => setActiveCategoryId('')}
+        aria-pressed={!activeCategoryId}
+        className={`rounded-full border px-4 py-2 text-sm font-medium ${!activeCategoryId ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+        كل المنتجات
+      </button>
+      {categories.map((category) => <button key={category.id} type="button"
+        onClick={() => setActiveCategoryId(category.id)}
+        aria-pressed={activeCategoryId === category.id}
+        className={`rounded-full border px-4 py-2 text-sm font-medium ${activeCategoryId === category.id ? 'border-brand-600 bg-brand-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+        {category.name}
+      </button>)}
+    </nav>}
+    {visibleProducts.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">{visibleProducts.map(product => <article key={product.id} className="overflow-hidden rounded-2xl border bg-white">
       {product.images[0] ? <img src={product.images[0]} alt={product.name} className="aspect-square w-full object-cover" /> : <div className="grid aspect-square place-items-center bg-slate-100 text-slate-400">لا توجد صورة</div>}
       <div className="p-5"><h2 className="font-bold">{product.name}</h2><p className="mt-2 line-clamp-2 text-sm text-slate-500">{product.description}</p><p className="mt-4 font-bold">{new Intl.NumberFormat('ar-EG', { style: 'currency', currency: product.currency }).format((product.variants[0]?.priceMinor ?? 0) / 100)}</p><button onClick={() => add(product.id)} className="btn-primary mt-4 w-full">أضف إلى السلة</button></div>
-    </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">لا توجد منتجات منشورة في هذا المتجر حاليًا.</div>}
+    </article>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-12 text-center text-slate-500">
+      {activeCategoryId ? 'لا توجد منتجات منشورة في هذا التصنيف.' : 'لا توجد منتجات منشورة في هذا المتجر حاليًا.'}
+    </div>}
   </main>;
 }
