@@ -7,9 +7,18 @@ export type PaymentStatus = 'unpaid' | 'pending' | 'paid' | 'failed' | 'refunded
 
 export interface User { id: ID; displayName: string; email: string }
 export interface Store { id: ID; ownerId: ID; name: string; slug: string; currency: CurrencyCode }
+export interface Category {
+  id: ID;
+  storeId: ID;
+  name: string;
+  slug: string;
+  description: string;
+  sortOrder: number;
+  isActive: boolean;
+}
 export interface ProductOption { id: ID; name: string; values: string[] }
 export interface ProductVariant { id: ID; sku: string; options: Record<string, string>; priceMinor: number; inventoryQuantity: number }
-export interface Product { id: ID; storeId: ID; kind: ProductKind; name: string; description: string; images: string[]; currency: CurrencyCode; status: ProductStatus; options: ProductOption[]; variants: ProductVariant[] }
+export interface Product { id: ID; storeId: ID; categoryId?: ID | null; kind: ProductKind; name: string; description: string; images: string[]; currency: CurrencyCode; status: ProductStatus; options: ProductOption[]; variants: ProductVariant[] }
 export interface OrderLine { productId: ID; variantId: ID; name: string; quantity: number; unitPriceMinor: number }
 export interface Order {
   id: ID;
