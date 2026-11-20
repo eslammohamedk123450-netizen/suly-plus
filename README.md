@@ -5,16 +5,17 @@
 ## التقنية
 - React 18 + TypeScript + Vite 6
 - Supabase PostgreSQL وAuth وStorage وEdge Functions وRow Level Security
-- React Router 6 وTailwind CSS 3
+- React Router 7.18 وTailwind CSS 3
 - Vitest + Testing Library
 
 ## تشغيل المشروع محليًا
 1. ثبّت Node.js 24 LTS (24.22.3 أو أحدث ضمن الإصدار الرئيسي 24) وGit.
 2. استنسخ المستودع.
-3. نفّذ `npm install`.
-4. انسخ `.env.example` إلى `.env.local`.
-5. تأكد من وجود `VITE_SUPABASE_URL` و`VITE_SUPABASE_PUBLISHABLE_KEY` في `.env.local`.
-6. نفّذ `npm run dev`.
+3. نفّذ `npm install --global npm@11.21.2` لتجنب عطل peer-dependency في إصدارات npm القديمة.
+4. نفّذ `npm install`.
+5. انسخ `.env.example` إلى `.env.local`.
+6. تأكد من وجود `VITE_SUPABASE_URL` و`VITE_SUPABASE_PUBLISHABLE_KEY` في `.env.local`.
+7. نفّذ `npm run dev`.
 
 ## أوامر المشروع
 - `npm run dev` — تشغيل بيئة التطوير
