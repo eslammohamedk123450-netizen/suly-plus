@@ -21,15 +21,20 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22.12.0
+          node-version: 24.22.3
+
+      - name: Upgrade npm to a version with the Arborist peer-set fix
+        run: |
+          npm install --global npm@11.21.2
+          npm --version
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Fail on moderate or higher dependency vulnerabilities
         run: npm audit --audit-level=moderate
