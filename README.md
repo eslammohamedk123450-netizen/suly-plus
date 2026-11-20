@@ -9,7 +9,7 @@
 - Vitest + Testing Library
 
 ## تشغيل المشروع محليًا
-1. ثبّت Node.js 22.12 أو أحدث وGit.
+1. ثبّت Node.js 24 LTS (24.22.3 أو أحدث ضمن الإصدار الرئيسي 24) وGit.
 2. استنسخ المستودع.
 3. نفّذ `npm install`.
 4. انسخ `.env.example` إلى `.env.local`.
