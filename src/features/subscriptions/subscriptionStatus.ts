@@ -1,5 +1,5 @@
 export type StoredSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled' | 'suspended';
-export type EffectiveSubscriptionStatus = StoredSubscriptionStatus | 'expired' | 'upcoming';
+export type EffectiveSubscriptionStatus = StoredSubscriptionStatus | 'expired' | 'upcoming' | 'plan_inactive';
 
 export interface SubscriptionPeriodInput {
   status: StoredSubscriptionStatus;
@@ -7,12 +7,15 @@ export interface SubscriptionPeriodInput {
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   trialEnd: string | null;
+  planActive?: boolean;
 }
 
 export function getEffectiveSubscriptionStatus(
   subscription: SubscriptionPeriodInput,
   now = Date.now(),
 ): EffectiveSubscriptionStatus {
+  if (subscription.planActive === false) return 'plan_inactive';
+
   const start = subscription.currentPeriodStart ? Date.parse(subscription.currentPeriodStart) : null;
   const end = subscription.currentPeriodEnd ? Date.parse(subscription.currentPeriodEnd) : null;
   const trialEnd = subscription.trialEnd ? Date.parse(subscription.trialEnd) : null;
