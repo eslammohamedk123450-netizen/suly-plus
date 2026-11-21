@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="robots" content="noindex" />
+    <title>جارٍ فتح Suly Plus...</title>
+    <script>
+      (() => {
+        const repositoryBase = '/suly-plus';
+        const path = window.location.pathname.startsWith(repositoryBase)
+          ? window.location.pathname.slice(repositoryBase.length)
+          : window.location.pathname;
+        const route = path + window.location.search + window.location.hash;
+        window.location.replace(repositoryBase + '/?p=' + encodeURIComponent(route));
+      })();
+    </script>
+  </head>
+  <body>
+    <p>جارٍ إعادة توجيهك إلى Suly Plus...</p>
+  </body>
+</html>

@@ -21,17 +21,22 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: 22.12.0
+          node-version: 24.22.3
+
+      - name: Upgrade npm to a version with the Arborist peer-set fix
+        run: |
+          npm install --global npm@11.21.2
+          npm --version
 
       - name: Install dependencies
-        run: npm install
+        run: npm install --no-audit --no-fund
 
-      - name: Fail on high or critical dependency vulnerabilities
+      - name: Fail on moderate or higher dependency vulnerabilities
         run: npm audit --audit-level=moderate
 
       - name: Report dependency security advisories
@@ -74,4 +79,3 @@ jobs:
           grep -q 'id="root"' /tmp/suly-index.html
           curl --fail --silent http://127.0.0.1:8080/account/orders -o /dev/null
           docker exec suly-plus-smoke nginx -t
-

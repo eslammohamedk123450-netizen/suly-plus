@@ -1,9 +1,10 @@
 # Build the Vite application with the public Supabase browser configuration only.
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --no-audit --no-fund
+RUN npm install --global npm@11.21.2 \
+    && npm install --no-audit --no-fund
 
 COPY . .
 
